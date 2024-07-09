@@ -79,8 +79,11 @@ class ForestEnv(gym.Env):
         self.state = np.array([self.state[0]+1, estimate_precipitation(self.state[0]+1)], dtype=np.float32)
         self.last_action = action
 
-        reward = np.array([action[0] * 0.3, self.carbon_stock_per_week * (action[0] + self.state[1])])
-        weight = np.array([0.5,0.5])
+        if(action + self.state[1] > self.water_per_week):
+            reward = np.array([-10000,-10000])
+        else:
+            reward = np.array([-action[0] * 3, self.carbon_stock_per_week * (action[0] + self.state[1])])
+        weight = np.array([1,0])
 
         self.cost += reward[0]
         self.carbon_stock += reward[1]
