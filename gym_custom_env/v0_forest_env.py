@@ -46,6 +46,9 @@ class ForestEnv(gym.Env):
             [53, self.water_per_week * 1.], dtype=np.float32
         )
 
+        # Reward: [custo, ghg]
+        self.reward_space = self.reward_space = spaces.Box(low=np.array([-53000.0, -53000.0]), high=np.array([0.0, 53000.0]), dtype=np.float32)
+        self.reward_dim = 2
 
         # Act: [gasto_agua]
         self.action_space = spaces.Box(low=np.array([0.0]), high=np.array([self.water_per_week * 1.]), shape=(1,), dtype=np.float32)
@@ -54,10 +57,6 @@ class ForestEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=self.low_state, high=self.high_state, dtype=np.float32
         )
-        # self.observation_space = spaces.Tuple((
-        #     spaces.Discrete(53),  # Week of the year
-        #     spaces.Box(low=np.array([0]), high=np.array([self.water_per_week * 1.]), dtype=np.float32)  # Rain observation
-        # ))
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -79,11 +78,14 @@ class ForestEnv(gym.Env):
         self.state = np.array([self.state[0]+1, estimate_precipitation(self.state[0]+1)], dtype=np.float32)
         self.last_action = action
 
+        reward = np.zeros(2, dtype=np.float32)
         if(action + self.state[1] > self.water_per_week):
-            reward = np.array([-10000,-10000])
+            reward[0] = reward[1] = -1000
         else:
-            reward = np.array([-action[0] * 3, self.carbon_stock_per_week * (action[0] + self.state[1])])
-        weight = np.array([1,0])
+            reward[0] = -action[0] * 100 / self.water_per_week
+            reward[1] = (action[0] + self.state[1]) * 100 / self.water_per_week
+        # weight = np.array([1,0])
+        # reward = np.dot(reward, weight)
 
         self.cost += reward[0]
         self.carbon_stock += reward[1]
@@ -96,7 +98,7 @@ class ForestEnv(gym.Env):
         if(self.render_mode=='human'):
             self.render()
 
-        return obs, np.dot(reward, weight), terminated, truncated, info
+        return obs, reward, terminated, truncated, info
 
     # Gym required function to render environment
     def render(self):
@@ -108,19 +110,15 @@ class ForestEnv(gym.Env):
             print("Total Carbon Stock: ", self.carbon_stock)
         else:
             print("Environment initializing...")
-            print("")
+        print("")
 
 # For unit testing
 if __name__=="__main__":
     env = gym.make('forest-env-v0', render_mode='human')
+    print(env.observation_space)
+    print(env.action_space)
+    print(env.reward_space)
 
     print("Check environment begin")
     check_env(env.unwrapped)
     print("Check environment end")
-
-    env.reset()
-
-    terminated = False
-    while(not terminated):
-        rand_action = env.action_space.sample()
-        obs, reward, terminated, _, _ = env.step(rand_action)
