@@ -58,76 +58,6 @@ class Standard:
     plt.show()
 
 
-class BaseOperators:
-  def __init__(self, ope1: Standard, ope2: Standard, lower_extra_range, upper_extra_range,
-               lower_typical_range, upper_typical_range):
-    self.ope1 = ope1
-    self.ope2 = ope2
-    self.lower_extra_range = lower_extra_range
-    self.upper_extra_range = upper_extra_range
-    self.lower_typical_range = lower_typical_range
-    self.upper_typical_range = upper_typical_range
-  
-
-  def next_step(self):
-    base_value = self.ope1.next_step()
-    
-    # Calculate the range for ope2 based on the constraints
-    min_ope2 = max(self.lower_extra_range - base_value, self.ope2.lower_bound)
-    max_ope2 = min(self.upper_extra_range - base_value, self.ope2.upper_bound)
-    
-    # Bias towards the typical range
-    typical_sum = (self.lower_typical_range + self.upper_typical_range) / 2
-    typical_ope2 = typical_sum - base_value
-    typical_ope2 = max(min_ope2, min(typical_ope2, max_ope2))
-    
-    # Generate the next value for ope2
-    if not self.ope2.stack:
-      new_value = random.uniform(
-        max(min_ope2, typical_ope2 - self.ope2.theta),
-        min(max_ope2, typical_ope2 + self.ope2.theta)
-      )
-    else:
-      variation = random.uniform(-1, 1) * self.ope2.theta
-      new_value = self.ope2.stack[-1] + variation
-      
-      # Bias towards the typical value
-      bias = (typical_ope2 - new_value) * self.ope2.typical_bias
-      new_value += bias
-
-      # Ensure bounds
-      new_value = max(min_ope2, min(new_value, max_ope2))
-    
-    self.ope2.next_step(value=new_value)
-
-
-  def simulate(self, steps):
-    for _ in range(steps):
-      self.next_step()
-
-
-  def show_history(self):
-    plt.figure(figsize=(10, 5))
-    plt.plot(self.ope1.stack, label=self.ope1.name)
-    plt.plot(self.ope2.stack, label=self.ope2.name)
-    plt.title(f"Value Stack History: {self.ope1.name} e {self.ope2.name}")
-    plt.xlabel("Steps")
-    plt.ylabel("Values")
-    plt.legend()
-    plt.show()
-  
-
-  def show_sum_history(self):
-    sum_stack = [ope_1 + ope_2 for ope_1, ope_2 in zip(self.ope1.stack, self.ope2.stack)]
-    plt.figure(figsize=(10, 5))
-    plt.plot(sum_stack, label="Sum of Values", color="green")
-    plt.title("Sum of Values Stack History")
-    plt.xlabel("Steps")
-    plt.ylabel("Values")
-    plt.legend()
-    plt.show()
-
-
 def show_history(nodes):
   plt.figure(figsize=(10, 5))
   title = ""
@@ -198,12 +128,38 @@ class CorrelacaoH2Metano(Correlacao):
     child.op.next_step(value=new_value)
 
 
-class CorrUsual(Correlacao):
-  def __init__(self, veja):
-    self.veja = veja
+class CorrelacaoUsual(Correlacao):
+  def __init__(self, correlation):
+    self.correlation = correlation
 
-  def calculate(self, from_node, to_node):
-    print(f'Strategy B: from {from_node.name} to {to_node.name} and {self.veja}')
+  def calculate(self, root, child):
+    root_last_value = root.op.stack[-1]
+    root_prev_value = root.op.stack[-2] if len(root.op.stack) > 1 else root_last_value
+    root_trend = root_last_value - root_prev_value  # Positive for increase, negative for decrease
+
+    # Use the root's trend as a bias for the child's next value
+    trend_bias = self.correlation * root_trend
+    print(f'Trend Bias: {trend_bias}')
+    print(f'Root Trend: {root_trend}\n')
+
+    # Generate the next value for the child
+    if not child.op.stack:
+      new_value = random.uniform(
+        max(child.op.lower_bound, child.op.typical_value - child.op.theta),
+        min(child.op.upper_bound, child.op.typical_value + child.op.theta)
+      )
+    else:
+      variation = random.uniform(-1, 1) * child.op.theta
+      new_value = child.op.stack[-1] + variation + trend_bias
+
+      # Bias towards the child's typical value
+      bias = (child.op.typical_value - new_value) * child.op.typical_bias
+      new_value += bias
+
+      # Ensure bounds
+      new_value = max(child.op.lower_bound, min(new_value, child.op.upper_bound))
+
+    child.op.next_step(value=new_value)
 
 
 class Node:
