@@ -6,7 +6,17 @@ import matplotlib.pyplot as plt
 
 class Standard:
   def __init__(self, lower_bound, upper_bound, typical_value, 
-               name, typical_bias=0.1, theta=1.5):
+               name, typical_bias=0.1, theta=1):
+    '''
+    Default operator class for the simulator.
+
+      - lower_bound: The minimum value the operator can take
+      - upper_bound: The maximum value the operator can take
+      - typical_value: The value the operator should be around
+      - name: The name of the operator
+      - typical_bias: The bias towards the typical value
+      - theta: The maximum variation from the previous value
+    '''
     self.lower_bound = lower_bound
     self.upper_bound = upper_bound
     self.typical_value = typical_value
@@ -16,7 +26,6 @@ class Standard:
     self.stack = []
     if not (lower_bound <= typical_value <= upper_bound):
       raise ValueError("Typical value must be within the bounds")
-
 
   def next_step(self, value=None):
     if value:
@@ -39,13 +48,10 @@ class Standard:
       new_value = max(self.lower_bound, min(new_value, self.upper_bound))
         
     self.stack.append(new_value)
-    return new_value
-
 
   def simulate(self, steps):
     for _ in range(steps):
       self.next_step()
-
 
   def show_history(self):
     plt.figure(figsize=(10, 5))
@@ -91,6 +97,14 @@ class Correlacao(ABC):
 class CorrelacaoH2Metano(Correlacao):
   def __init__(self, limit_lower_bound, limit_upper_bound,
                typical_lower_bound, typical_upper_bound):
+    '''
+    Correlation strategy for the H2 and Metano operators.
+
+      - limit_lower_bound: The minimum value the sum of the operators can take
+      - limit_upper_bound: The maximum value the sum of the operators can take
+      - typical_lower_bound: The lower bound of the typical range of the sum
+      - typical_upper_bound: The upper bound of the typical range of the sum
+    '''
     self.limit_lower_bound = limit_lower_bound
     self.limit_upper_bound = limit_upper_bound
     self.typical_lower_bound = typical_lower_bound
@@ -135,12 +149,14 @@ class CorrelacaoUsual(Correlacao):
   def calculate(self, root, child):
     root_last_value = root.op.stack[-1]
     root_prev_value = root.op.stack[-2] if len(root.op.stack) > 1 else root_last_value
-    root_trend = root_last_value - root_prev_value  # Positive for increase, negative for decrease
+    root_range = root.op.upper_bound - root.op.lower_bound
 
-    # Use the root's trend as a bias for the child's next value
-    trend_bias = self.correlation * root_trend
-    print(f'Trend Bias: {trend_bias}')
-    print(f'Root Trend: {root_trend}\n')
+    # Calculate the normalized trend of the root
+    root_trend = (root_last_value - root_prev_value) / root_range
+
+    # Scale the trend to the child's range and apply correlation
+    child_range = child.op.upper_bound - child.op.lower_bound
+    trend_bias = self.correlation * root_trend * child_range
 
     # Generate the next value for the child
     if not child.op.stack:
