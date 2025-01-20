@@ -130,7 +130,6 @@ class Standard:
             step=self.exceed_steps_counter
           )
           self.exceed_steps_counter += 1
-        # Handle exceeding behavior
         elif self.hold_steps_total > self.hold_steps_counter:
           # Holding at the peak with small variations
           # new_value = self.exceeding_peak + random.uniform(-self.hold_variation, self.hold_variation)
@@ -267,15 +266,47 @@ class CorrelacaoH2Metano(Correlacao):
         min(max_child, typical_child + child.op.theta)
       )
     else:
-      variation = random.uniform(-1, 1) * child.op.theta
-      new_value = child.op.stack[-1] + variation
-      
-      # Bias towards the typical value
-      bias = (typical_child - new_value) * child.op.typical_bias
-      new_value += bias
+      if root.op.exceeding:
+        # Normal operation2
 
-      # Ensure bounds
-      new_value = max(min_child, min(new_value, max_child))
+        min_child = max(self.limit_lower_bound - base_value, 0)
+        max_child = min(self.limit_upper_bound - base_value, 100)
+        
+        # Bias towards the typical range
+        typical_sum = (self.typical_lower_bound + self.typical_upper_bound) / 2
+        typical_child = typical_sum - base_value
+        typical_child = max(min_child, min(typical_child, max_child))
+
+        new_value = child.op.stack[-1]
+
+        # Random walk with a bias towards the typical value
+        if random.random() < child.op.typical_bias_prob:
+          variation = random.uniform(-1, 1) * child.op.theta
+          new_value += variation
+        
+        # Bias towards the typical value
+        if random.random() < child.op.typical_bias_prob:
+          bias = (typical_child - new_value) * child.op.typical_bias
+          new_value += bias
+
+        # Ensure bounds
+        new_value = max(min_child, min(new_value, max_child))
+      else:
+        # Normal operation
+        new_value = child.op.stack[-1]
+
+        # Random walk with a bias towards the typical value
+        if random.random() < child.op.typical_bias_prob:
+          variation = random.uniform(-1, 1) * child.op.theta
+          new_value += variation
+        
+        # Bias towards the typical value
+        if random.random() < child.op.typical_bias_prob:
+          bias = (typical_child - new_value) * child.op.typical_bias
+          new_value += bias
+
+        # Ensure bounds
+        new_value = max(min_child, min(new_value, max_child))
     
     child.op.next_step(value=new_value)
 
