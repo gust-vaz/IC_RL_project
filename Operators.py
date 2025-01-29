@@ -166,7 +166,6 @@ class GreatVariation(StandardOperator):
           self.exceed_steps_counter += 1
         elif self.hold_steps_total > self.hold_steps_counter:
           # Holding at the peak with small variations
-          # new_value = self.exceeding_peak + random.uniform(-self.hold_variation, self.hold_variation)
           new_value = self.holding()
           self.hold_steps_counter += 1
         elif self.return_steps_total > self.return_steps_counter:
@@ -221,7 +220,7 @@ class GreatVariation(StandardOperator):
     return new_value
 
 
-class LittleVaration(StandardOperator):
+class LittleVariation(StandardOperator):
   def __init__(self, lower_bound: float,
                  upper_bound: float,
                  typical_value: float,
@@ -248,8 +247,11 @@ class LittleVaration(StandardOperator):
     y = y0 + dy * (step - x0) / dx
     return y
   
-  def set_steps(self):
-    self.total_steps = random.randint(*self.steps_range)
+  def set_steps(self, range=None):
+    if range:
+      self.total_steps = random.randint(*range)
+    else:
+      self.total_steps = random.randint(*self.steps_range)
     self.steps_counter = 0
 
   def next_step(self, value=None):

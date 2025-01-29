@@ -3,8 +3,8 @@ import random
 from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
 from math import sin, cos
-from Operators import StandardOperator, GreatVariation, LittleVaration
-from Relations import Correlacao, CorrelacaoH2Metano, CorrelacaoUsual
+from Operators import StandardOperator, GreatVariation, LittleVariation
+from Relations import Correlacao, CorrelacaoH2Metano
 
 
 class Node:
@@ -75,7 +75,7 @@ class Graph:
     for node in self.nodes:
       print(f'Node {node.name}:', end=' ')
       for edge in node.edges:
-        print(f'{edge.child.name}', end=' ')
+        print(f'{edge.child.name}', end=', ')
       print()
 
 

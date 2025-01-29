@@ -50,7 +50,7 @@ class CorrelacaoH2Metano(Correlacao):
         new_value = child.op.stack[-1]
 
     else:
-      child.op.excceeding = True
+      child.op.exceeding = True
       child.op.hold_steps_total = root.op.hold_steps_total
       child.op.hold_steps_counter = root.op.hold_steps_counter
       new_value = child.op.stack[-1]
@@ -73,63 +73,6 @@ class CorrelacaoH2Metano(Correlacao):
     
     # Ensure bounds
     new_value = max(min_child, min(new_value, max_child))   
-    child.op.next_step(value=new_value)
-
-
-class CorrelacaoUsual(Correlacao):
-  def __init__(self, correlation, trend_prob=0.9):
-    self.correlation = correlation
-    self.trend_prob = trend_prob
-
-  def calculate(self, root, child):
-    root_last_value = root.op.stack[-1]
-    root_prev_value = root.op.stack[-2] if len(root.op.stack) > 1 else root_last_value
-    root_range = root.op.upper_bound - root.op.lower_bound
-
-    # Calculate the normalized trend of the root
-    root_trend = (root_last_value - root_prev_value) / root_range
-
-    # Scale the trend to the child's range and apply correlation
-    child_range = child.op.upper_bound - child.op.lower_bound
-    trend_bias = self.correlation * root_trend * child_range
-
-    # Generate the next value for the child
-    if not child.op.stack:
-      if random.random() < child.op.theta_prob:
-        new_value = random.uniform(
-          max(child.op.lower_bound, child.op.typical_value - child.op.theta),
-          min(child.op.upper_bound, child.op.typical_value + child.op.theta)
-        )
-      else:
-        new_value = child.op.typical_value
-    else:
-      new_value = child.op.stack[-1]
-
-      # Apply the trend bias
-      if random.random() < self.trend_prob:
-        new_value += trend_bias
-
-      # Random walk with a bias towards the typical value
-      if random.random() < child.op.theta_prob:
-        variation = random.uniform(-1, 1) * child.op.theta
-        new_value += variation
-
-      # Bias towards the child's typical value
-      bias = 0
-      if random.random() < child.op.typical_bias_prob:
-        bias = (child.op.typical_value - new_value) * child.op.typical_bias
-        new_value += bias
-
-      if root.op.exceeding:
-        # root_last_value = root.op.stack[-1]
-        # percentage_deviation_root = (root_last_value - root.op.typical_value) / root.op.typical_value
-        # new_value += percentage_deviation_root * self.correlation * child.op.typical_value
-        if root.op.hold_steps_total > root.op.hold_steps_counter and bias != 0:
-          new_value -= bias
-        new_value = max(0, min(new_value, child.op.upper_bound*1.6))
-      else:
-        new_value = max(child.op.lower_bound, min(new_value, child.op.upper_bound))
-
     child.op.next_step(value=new_value)
 
 
@@ -163,3 +106,82 @@ class CorrelacaoGreatLittle(Correlacao):
       child.op.end_value = max(0, min(child.op.end_value, 100))
 
     child.op.next_step()
+
+
+class CorrelacaoGreatLittle2(Correlacao):
+  def __init__(self, correlation,
+               typical_bias_prob=0.1, 
+               typical_bias=0.5,
+               theta_prob=0.1,
+               amplifier=1,
+               holding_range=(70, 100)):
+    self.correlation = correlation
+    self.typical_bias_prob = typical_bias_prob
+    self.typical_bias = typical_bias
+    self.theta_prob = theta_prob
+    self.amplifier = amplifier
+    self.holding_range = holding_range
+
+  def calculate(self, root, child):
+    if child.op.stack and child.op.total_steps == child.op.steps_counter:
+      if root.op.exceeding:
+        child.op.set_steps(range=self.holding_range)
+      else:
+        child.op.set_steps()
+      child.op.start_value = child.op.stack[-1]
+
+      # Provide the root variation to the child 
+      variation = (root.op.stack[-1] - root.op.typical_value) 
+      percentage_variation = variation / root.op.typical_value
+      if root.op.exceeding:
+        child.op.end_value = child.op.typical_value * (1 + percentage_variation * self.correlation * self.amplifier)
+      else:
+        child.op.end_value = child.op.typical_value * (1 + percentage_variation * self.correlation)
+
+      # Bias of the operator itself weighted by correlation
+      if random.random() < self.typical_bias_prob and not root.op.exceeding:
+        child.op.end_value += (child.op.typical_value - child.op.end_value) * self.typical_bias
+      if random.random() < self.theta_prob:
+        child.op.end_value += random.uniform(-1, 1) * child.op.theta
+      
+      # Ensure bounds
+      child.op.end_value = max(0, min(child.op.end_value, 100))
+
+    child.op.next_step()
+
+
+# class CorrelacaoDownGrowing(Correlacao):
+#   def __init__(self, correlation,
+#                back_range=(0, 30),
+#                typical_bias_prob=0.1,
+#                typical_bias=0.5,
+#                theta_prob=0.1):
+#     self.correlation = correlation
+#     self.back_range = back_range
+#     self.typical_bias_prob = typical_bias_prob
+#     self.typical_bias = typical_bias
+#     self.theta_prob = theta_prob
+
+#     self.to_back = False
+
+#   def calculate(self, root, child):
+#     if child.op.stack and child.op.total_steps == child.op.steps_counter:
+#       # if root.op.exceeding and 
+#       child.op.set_steps()
+#       child.op.start_value = child.op.stack[-1]
+
+#       # Provide the root variation to the child
+#       variation = (root.op.stack[-1] - root.op.typical_value)
+#       percentage_variation = variation / root.op.typical_value
+#       child.op.end_value = child.op.typical_value * (1 + percentage_variation * self.correlation)
+
+#       # Bias of the operator itself weighted by correlation
+#       if random.random() < self.typical_bias_prob:
+#         child.op.end_value += (child.op.typical_value - child.op.end_value) * self.typical_bias
+#       if random.random() < self.theta_prob:
+#         child.op.end_value += random.uniform(-1, 1) * child.op.theta
+
+#       # Ensure bounds
+#       child.op.end_value = max(0, min(child.op.end_value, 100))
+
+#     child.op.next_step()
