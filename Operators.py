@@ -247,7 +247,7 @@ class GreatVariation(StandardOperator):
     y = y0 + dy * (step - x0) / dx
 
     if step < x1 - dx * 0.05 and step > x0 + dx * 0.05 and random.random() < self.exceed_bias_prob:
-      y += random.randint(self.exceed_bias_range[0], self.exceed_bias_range[1])
+      y += random.uniform(*self.exceed_bias_range)
 
     if random.random() < self.exceed_cos_prob:
       y += cos(step / 5)

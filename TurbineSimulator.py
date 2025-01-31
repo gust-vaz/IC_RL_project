@@ -6,6 +6,23 @@ from math import sin, cos
 from Operators import StandardOperator, GreatVariation, LittleVariation
 from Relations import Correlacao, CorrelacaoH2Metano
 
+plt.style.use("seaborn-whitegrid")
+plt.rc("figure", autolayout=True, figsize=(11, 4))
+plt.rc(
+    "axes",
+    labelweight="bold",
+    labelsize="large",
+    titleweight="bold",
+    titlesize=16,
+    titlepad=10,
+)
+plot_params = dict(
+    color="0.75",
+    style=".-",
+    markeredgecolor="0.25",
+    markerfacecolor="0.25",
+)
+# %config InlineBackend.figure_format = 'retina'
 
 class Node:
   def __init__(self, operator):
@@ -79,11 +96,19 @@ class Graph:
       print()
 
 
-def show_history(nodes):
+def show_history(nodes, range=None):
   plt.figure(figsize=(10, 5))
   title = ""
   for node in nodes:
-    plt.plot(node.op.stack, label=node.name)
+    if range:
+      if range[0] is None:
+        plt.plot(node.op.stack[:range[1]], label=node.name)
+      elif range[1] is None:
+        plt.plot(node.op.stack[range[0]:], label=node.name)
+      else:
+        plt.plot(node.op.stack[range[0]:range[1]], label=node.name)
+    else:
+      plt.plot(node.op.stack, label=node.name)
     title = title + node.name + ", "
   plt.title(f"Value Stack History: {title}")
   plt.xlabel("Steps")
