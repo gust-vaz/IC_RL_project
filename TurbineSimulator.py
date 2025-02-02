@@ -4,7 +4,8 @@ from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
 from math import sin, cos
 from Operators import StandardOperator, GreatVariation, LittleVariation
-from Relations import Correlacao, CorrelacaoH2Metano
+from Relations import Correlacao, CorrelacaoH2Metano, CorrelacaoGreatLittle, CorrelacaoDownGrowing
+
 
 plt.style.use("seaborn-whitegrid")
 plt.rc("figure", autolayout=True, figsize=(11, 4))
@@ -73,6 +74,7 @@ class Graph:
     if random_seed:
       random.seed(random_seed)
     self.nodes = []
+    self.is_exceeding_step = []
 
   def add_node(self, operator):
     node = Node(operator)
@@ -87,6 +89,17 @@ class Graph:
       for node in self.nodes:
         if not node.root:
           node.simulate_component()
+          match node.op.state.name():
+            case "Normal":
+              self.is_exceeding_step.append(0)
+            case "Exceeding":
+              self.is_exceeding_step.append(1)
+            case "Holding":
+              self.is_exceeding_step.append(2)
+            case "Returning":
+              self.is_exceeding_step.append(3)
+            case _:
+              self.is_exceeding_step.append(-1)
 
   def display(self):
     for node in self.nodes:
@@ -94,6 +107,21 @@ class Graph:
       for edge in node.edges:
         print(f'{edge.child.name}', end=', ')
       print()
+
+  def generate_alert_period(self, n_unstable_steps):
+    count = 0
+    alert_period = []
+    for i in self.is_exceeding_step:
+      if i == 1 or i == 3:
+        alert_period.append(True)
+        count = n_unstable_steps
+      elif count > 0:
+        alert_period.append(True)
+        count -= 1
+      else:
+        alert_period.append(False)
+
+    return alert_period
 
 
 def show_history(nodes, range=None):
@@ -122,6 +150,22 @@ def show_sum_history(nodeA, nodeB):
   plt.figure(figsize=(10, 5))
   plt.plot(sum_stack, label="Sum of Values", color="green")
   plt.title("Sum of Values Stack History")
+  plt.xlabel("Steps")
+  plt.ylabel("Values")
+  plt.legend()
+  plt.show()
+
+
+def show_alert_period(alert_period, node):
+  plt.figure(figsize=(10, 5))
+  plt.plot(node.op.stack, label=node.name)
+
+  x = list(range(len(node.op.stack)))
+  for i in range(len(alert_period)):
+    if alert_period[i]:
+      plt.fill_between([x[i], x[i]], 0, node.op.stack[i], color='lightblue', alpha=0.5)
+  
+  plt.title(f"Alert Period for {node.name}")
   plt.xlabel("Steps")
   plt.ylabel("Values")
   plt.legend()

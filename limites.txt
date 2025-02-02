@@ -34,9 +34,12 @@ Redundâncias:
             'PODER_CALORIFICO_BRUTO_EM_VOLUME',
             'PODER_CALORIFICO_LIQUIDO_EM_VOLUME',
             'INDICE_WOBBE_BRUTO','INDICE_WOBBE_LIQUIDO'
+
 - H2:       'FATOR_DE_SOMA','PODER_CALORIFICO_BRUTO_EM_MASSA,
             'PODER_CALORIFICO_BRUTO_EM_MASSA'
+
 - VAZAO_DE_GAS_COMBUSTIVEL:         ninguém
+
 - POTENCIA_ATIVA_GERADOR:           'TEMPERATURA_EXAUSTAO_T7',
                                     'FATOR_DE_CARGA', 'TEMPERATURA_DA_CHAMA',
                                     Queimadores

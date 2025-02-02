@@ -79,42 +79,9 @@ class CorrelacaoGreatLittle(Correlacao):
   def __init__(self, correlation,
                typical_bias_prob=0.1, 
                typical_bias=0.5,
-               theta_prob=0.1):
-    self.correlation = correlation
-    self.typical_bias_prob = typical_bias_prob
-    self.typical_bias = typical_bias
-    self.theta_prob = theta_prob
-
-  def calculate(self, root, child):
-    if child.op.stack and child.op.total_steps == child.op.steps_counter:
-      child.op.state = root.op.state
-      child.op.set_steps()
-      child.op.start_value = child.op.stack[-1]
-
-      # Provide the root variation to the child 
-      variation = (root.op.stack[-1] - root.op.typical_value) 
-      percentage_variation = variation / root.op.typical_value
-      child.op.end_value = child.op.typical_value * (1 + percentage_variation * self.correlation)
-      
-      # Bias of the operator itself weighted by correlation
-      if random.random() < self.typical_bias_prob:
-        child.op.end_value += (child.op.typical_value - child.op.end_value) * self.typical_bias
-      if random.random() < self.theta_prob:
-        child.op.end_value += random.uniform(-1, 1) * child.op.theta
-      
-      # Ensure bounds
-      child.op.end_value = max(0, min(child.op.end_value, 100))
-
-    child.op.next_step()
-
-
-class CorrelacaoGreatLittle2(Correlacao):
-  def __init__(self, correlation,
-               typical_bias_prob=0.1, 
-               typical_bias=0.5,
                theta_prob=0.1,
                amplifier=1,
-               holding_range=(70, 100)):
+               holding_range=None):
     self.correlation = correlation
     self.typical_bias_prob = typical_bias_prob
     self.typical_bias = typical_bias
@@ -125,7 +92,6 @@ class CorrelacaoGreatLittle2(Correlacao):
   def calculate(self, root, child):
     if child.op.stack and child.op.total_steps == child.op.steps_counter:
       child.op.state = root.op.state
-
       if root.op.state.name() != "Normal":
         child.op.set_steps(range=self.holding_range)
       else:
