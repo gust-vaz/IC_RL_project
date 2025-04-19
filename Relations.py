@@ -2,6 +2,11 @@ from abc import ABC, abstractmethod
 from math import sin, cos
 import random
 
+# Constants for state machine
+NORMAL    = 0
+EXCEEDING = 1
+HOLDING   = 2
+RETURNING = 3
 
 class Correlacao(ABC):
   @abstractmethod
@@ -31,7 +36,7 @@ class CorrelacaoH2Metano(Correlacao):
     base_value = root.op.stack[-1]
     child.op.state = root.op.state
     
-    if root.op.state.name() == "Normal":
+    if root.op.state.get_type() == NORMAL:
       # Calculate the range for child based on the constraints
       min_child = max(self.limit_lower_bound - base_value, child.op.lower_bound)
       max_child = min(self.limit_upper_bound - base_value, child.op.upper_bound)
@@ -92,22 +97,22 @@ class CorrelacaoGreatLittle(Correlacao):
   def calculate(self, root, child):
     if child.op.stack and child.op.total_steps == child.op.steps_counter:
       child.op.state = root.op.state
-      if root.op.state.name() != "Normal":
-        child.op.set_steps(range=self.holding_range)
+      if root.op.state.get_type() != NORMAL:
+        child.op.set_new_trend(range=self.holding_range)
       else:
-        child.op.set_steps()
+        child.op.set_new_trend()
       child.op.start_value = child.op.stack[-1]
 
       # Provide the root variation to the child 
       variation = (root.op.stack[-1] - root.op.typical_value) 
       percentage_variation = variation / root.op.typical_value
-      if root.op.state.name() != "Normal":
+      if root.op.state.get_type() != NORMAL:
         child.op.end_value = child.op.typical_value * (1 + percentage_variation * self.correlation * self.amplifier)
       else:
         child.op.end_value = child.op.typical_value * (1 + percentage_variation * self.correlation)
 
       # Bias of the operator itself weighted by correlation
-      if random.random() < self.typical_bias_prob and not root.op.state.name() == "Normal":
+      if random.random() < self.typical_bias_prob and not root.op.state.get_type() == NORMAL:
         child.op.end_value += (child.op.typical_value - child.op.end_value) * self.typical_bias
       if random.random() < self.theta_prob:
         child.op.end_value += random.uniform(-1, 1) * child.op.theta
@@ -152,7 +157,7 @@ class CorrelacaoDownGrowing(Correlacao):
 
   def calculate(self, root, child):
     self.current_back += 1
-    if root.op.state.name() == "Returning":
+    if root.op.state.get_type() == RETURNING:
       self.to_back = True
 
     if child.op.stack and child.op.total_steps == child.op.steps_counter:
@@ -163,9 +168,9 @@ class CorrelacaoDownGrowing(Correlacao):
         self.current_back = 0
       
       # Back until around the typical value
-      if self.to_back and (root.op.state.name() == "Normal" or root.op.state.name() == "Returning"):
+      if self.to_back and (root.op.state.get_type() == NORMAL or root.op.state.get_type() == RETURNING):
         child.op.state = root.op.state
-        child.op.set_steps()
+        child.op.set_new_trend()
 
         child.op.start_value = child.op.stack[-1]
         child.op.end_value = self.decide_end(
@@ -184,16 +189,16 @@ class CorrelacaoDownGrowing(Correlacao):
         self.to_back = False
         child.op.state = root.op.state
 
-        if root.op.state.name() != "Normal":
-          child.op.set_steps(range=self.holding_range)
+        if root.op.state.get_type() != NORMAL:
+          child.op.set_new_trend(range=self.holding_range)
         else:
-          child.op.set_steps()
+          child.op.set_new_trend()
         child.op.start_value = child.op.stack[-1]
 
         # Provide the root variation to the child
         variation = (root.op.stack[-1] - root.op.typical_value)
         percentage_variation = variation / root.op.typical_value
-        if root.op.state.name() != "Normal":
+        if root.op.state.get_type() != NORMAL:
           child.op.end_value = child.op.typical_value * (1 + percentage_variation * self.correlation * self.amplifier)
         else:
           child.op.end_value = child.op.typical_value * (1 + percentage_variation * self.correlation)

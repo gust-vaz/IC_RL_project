@@ -1,11 +1,15 @@
-
 import random
 from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
 from math import sin, cos
-from Operators import StandardOperator, GreatVariation, LittleVariation
+from Operators import StandardOperator, HighVariability, LowVariability
 from Relations import Correlacao, CorrelacaoH2Metano, CorrelacaoGreatLittle, CorrelacaoDownGrowing
 
+# Constants for state machine
+NORMAL    = 0
+EXCEEDING = 1
+HOLDING   = 2
+RETURNING = 3
 
 plt.style.use("seaborn-whitegrid")
 plt.rc("figure", autolayout=True, figsize=(11, 4))
@@ -89,17 +93,7 @@ class Graph:
       for node in self.nodes:
         if not node.root:
           node.simulate_component()
-          match node.op.state.name():
-            case "Normal":
-              self.is_exceeding_step.append(0)
-            case "Exceeding":
-              self.is_exceeding_step.append(1)
-            case "Holding":
-              self.is_exceeding_step.append(2)
-            case "Returning":
-              self.is_exceeding_step.append(3)
-            case _:
-              self.is_exceeding_step.append(-1)
+          self.is_exceeding_step.append(node.op.state.get_type())
 
   def display(self):
     for node in self.nodes:
@@ -112,7 +106,7 @@ class Graph:
     count = 0
     alert_period = []
     for i in self.is_exceeding_step:
-      if i == 1 or i == 3:
+      if i == NORMAL or i == RETURNING:
         alert_period.append(True)
         count = n_unstable_steps
       elif count > 0:
