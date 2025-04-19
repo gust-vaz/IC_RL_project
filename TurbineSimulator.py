@@ -106,7 +106,7 @@ class Graph:
     count = 0
     alert_period = []
     for i in self.is_exceeding_step:
-      if i == NORMAL or i == RETURNING:
+      if i == EXCEEDING or i == RETURNING:
         alert_period.append(True)
         count = n_unstable_steps
       elif count > 0:
