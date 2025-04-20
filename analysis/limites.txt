@@ -1,0 +1,103 @@
+Entradas - Gases
+Variável        Mínimo      Máximo      Típico    Original      Corr H2     Corr Metano     Comportamento
+
+Hidrogênio      30          60          48.32     (H2)                      -1              Caos
+Metano          39.24       65.1        47.86     (CH4)         -1                          Caos
+Etileno         0.05        0.24        0.24      (C2H4)        0.64        -0.62           Reto
+Etano           0.06        1.8         0.43      (C2H6)        -0.84       0.85            Caos
+Propileno       0.06        0.21        0.21      (C3H6)        0.47        -0.48           Reto caido
+Propano         0           0.69        0.07      (C3H8)        -0.95       0.94            Caos
+N-Butano        0.01        0.21        0.04      (HC C4s)      0.32        -0.31           Reto
+C5+             0.05        0.1         0.1       (HC C5s)      -0.89       0.89            Caos reto
+CO              0           1.46        1.46      (CO)          0.43        -0.44           Reto caido
+CO2             0           0.49        0.21      (CO2)         -0.92       0.92            Caos
+Enxofre         0           8           0         (Enxofre)     -0.18       0.19            Reto
+
+
+
+Entrada - Outros
+Variável        Limite inferior     Mínimo      Médio     Máximo      Limite superior
+
+Temp. Amb       3                   8           23        35          42
+Temp. Com       22                  25          30        35          37
+Indice Wobb     25.000              52.255      52.725    60.296      75.000
+% H2            0                   30          48.32     60          80
+% Metano        30                  39          47.86     70          100
+'POTENCIA_ATIVA_GERADOR','TEMPERATURA_EXAUSTAO_T7', 'VAZAO_DE_GAS_COMBUSTIVEL',
+'PODER_CALORIFICO_BRUTO_EM_MASSA','PODER_CALORIFICO_LIQUIDO_EM_MASSA',
+'PODER_CALORIFICO_BRUTO_EM_VOLUME','PODER_CALORIFICO_LIQUIDO_EM_VOLUME',
+'FATOR_DE_SOMA','PESO_MOLECULAR','DENSIDADE','DENSIDADE_RELATIVA',
+'INDICE_WOBBE_BRUTO','INDICE_WOBBE_LIQUIDO'
+
+Redundâncias:
+- Metano:   'DENSIDADE','DENSIDADE_RELATIVA','PESO_MOLECULAR',
+            'PODER_CALORIFICO_BRUTO_EM_VOLUME',
+            'PODER_CALORIFICO_LIQUIDO_EM_VOLUME',
+            'INDICE_WOBBE_BRUTO','INDICE_WOBBE_LIQUIDO'
+
+- H2:       'FATOR_DE_SOMA','PODER_CALORIFICO_BRUTO_EM_MASSA,
+            'PODER_CALORIFICO_BRUTO_EM_MASSA'
+
+- VAZAO_DE_GAS_COMBUSTIVEL:         ninguém
+
+- POTENCIA_ATIVA_GERADOR:           'TEMPERATURA_EXAUSTAO_T7',
+                                    'FATOR_DE_CARGA', 'TEMPERATURA_DA_CHAMA',
+                                    Queimadores
+
+
+Intermediários
+Queimadores, 'FATOR_DE_CARGA', 'TEMPERATURA_DA_CHAMA'
+
+
+
+Meus comentários:
+1_parada_da_maquina.pdf
+- vazão de gás combustível cai pois o operador corta o combustível?
+- vazão de gás em torno de 6
+- % etano = 1,5 (descendo)
+- % propano = 1,25 (descendo)
+- densidade = 0,4 (subindo)
+- poder calorífico 65 (subindo)
+- peso molecular 8,5 (descendo)
+- ao analisar todo o período, a vazão chegou a ser zero antes do problema, o que podem ser dados errados ou aconteceu algo no suprimento de combustivel
+- Metano chega a ser 80% da mistura
+- % de etano está em torno de 8 antes do corte
+- % de propano está em torno de 3,5 antes do corte
+- densidade, poder calorífico e peso molecular sobem por influência do etano e propano
+
+2_parada_da_maquina.pdf
+- vazão de gás em torno de 12 (mas está oscilando muito)
+- % etano = 7,5 (estável)
+- % propano = 3 (estável)
+- densidade = 0,66 (subindo)
+- poder calorífico 50 (subindo)
+- peso molecular 19 (descendo)
+- Metano chega a ser 80% da mistura
+- % de etano está em torno de 8 antes do corte
+- % de propano está em torno de 3,5 antes do corte
+- densidade, poder calorífico e peso molecular sobem por influência do etano e propano
+
+3_parada_da_maquina.pdf
+- vazão de gás combustível cai pois o operador corta o combustível?
+- vazão de gás em torno de 6
+- % etano = 3 (estável)
+- % propano = 1,5 (estável)
+- densidade = 0,75 (subindo)
+- poder calorífico 62 (subindo)
+- peso molecular 10 (estável)
+- Metano chega a ser 80% da mistura
+- % de etano está em torno de 8 antes do corte
+- % de propano está em torno de 3,5 antes do corte
+- densidade, poder calorífico e peso molecular sobem por influência do etano e propano
+
+periodo_normal.pdf
+- vazão de gás em torno de 7 (mesmo oscilando bastante) - ao analisar todo o período, a vazão deve ficar em 7 +/- 1
+- % etano = 0,26 (estável)
+- % propano = 0,04 (estável)
+- densidade = 0,42 (estável)
+- poder calorífico 58 (estável)
+- peso molecular 8,6 (é uma reta decrescente, mas a faixa é muito estreita)
+- mistura oscila em torno de 60% H2 e 40% metano
+
+Meu chute é que a turbina foi feita para H2 e metano e a entrada não é bem controlada, entrando etano e propano em valores acima do tolerável.
+Faz sentido o problema acontecer quando se tem uma mistura com mais metano, pois vêm junto os contaminantes (etano e propano).

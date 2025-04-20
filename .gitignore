@@ -1,1 +1,2 @@
-data/
+analysis/data/
+online/simulator_modules/__pycache__/
