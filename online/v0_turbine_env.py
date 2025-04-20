@@ -188,7 +188,12 @@ class TurbineEnv(gym.Env):
         truncated = self.n_steps <= self.graph.current_step
 
         # Additional info to return. For debugging or whatever.
-        info = {}
+        info = {
+            "last_alert": last_alert,
+            "current_step": self.graph.current_step,
+            "last_action": action,
+            "reward": reward
+        }
 
         # Render environment
         if(self.render_mode == 'human'):
