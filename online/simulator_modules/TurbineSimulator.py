@@ -144,6 +144,7 @@ class Graph:
 
     Attributes:
         nodes (list[Node]): List of nodes in the graph.
+        current_step (int): The current step in the simulation.
         n_unstable_steps (int): Number of steps to consider as unstable (alert period).
         count (int): Counter for unstable steps.
         last_alert (bool): Whether the last step was is considered an alert.
@@ -164,6 +165,7 @@ class Graph:
         if random_seed is not None:
             random.seed(random_seed)
         self.nodes = []
+        self.current_step = 0
         self.n_unstable_steps = n_unstable_steps
         self.count = 0
         self.is_exceeding_step = []
@@ -204,6 +206,7 @@ class Graph:
             steps (int): The number of steps to simulate.
         """
         for _ in range(steps):
+            self.current_step += 1
             for node in self.nodes:
                 if node.root is None:
                     node.simulate_component(self.debug)
