@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from math import sin, cos
-# from TurbineSimulator import Node, Edge
+# from TurbineSimulator import Node
 import random
 
 # Constants for state machine
@@ -15,7 +15,7 @@ class Link(ABC):
     """
 
     @abstractmethod
-    def calculate(self, parent, child) -> None:
+    def calculate(self, parent, child) -> float:
         """
         Calculates the relationship between the parent and child nodes.
         The parent node dictates the behavior of the child node.
@@ -23,9 +23,11 @@ class Link(ABC):
         Parameters:
             parent (Node): The parent node.
             child (Node): The child node.
+        
+        Returns:
+            float: The calculated value for the child node.
         """
         pass
-
 
 class LinkH2Metano(Link):
     """
@@ -55,9 +57,9 @@ class LinkH2Metano(Link):
         self.typical_lower_bound = typical_lower_bound
         self.typical_upper_bound = typical_upper_bound
 
-    def calculate(self, parent, child) -> None:
+    def calculate(self, parent, child) -> float:
         # Get the base value from the parent node's stack
-        base_value = parent.op.stack[-1]
+        base_value = parent.op.current_value
         # Synchronize the child's state with the parent's state
         child.op.state = parent.op.state
         
@@ -87,7 +89,7 @@ class LinkH2Metano(Link):
        
         # Ensure bounds and set the next step
         new_value = max(min_child, min(new_value, max_child))   
-        child.op.next_step(value=new_value)
+        return child.op.next_step(value=new_value)
     
     def _generate_next_value(self, child, min_child: float, max_child: float, typical_child: float) -> float:
         """
@@ -102,7 +104,7 @@ class LinkH2Metano(Link):
         Returns:
             float: The next value for the child node.
         """
-        if not child.op.stack:
+        if child.op.current_value is None:
             # Initialize the stack with a value near the typical value
             if random.random() < child.op.theta_prob:
                 return random.uniform(
@@ -111,7 +113,7 @@ class LinkH2Metano(Link):
                 )
             return typical_child
 
-        new_value = child.op.stack[-1]
+        new_value = child.op.current_value
 
         # Apply random variation
         if random.random() < child.op.theta_prob:
@@ -122,7 +124,6 @@ class LinkH2Metano(Link):
             new_value += (typical_child - new_value) * child.op.typical_bias
 
         return new_value
-
 
 class LinkSimilarBehavior(Link):
     """
@@ -160,8 +161,8 @@ class LinkSimilarBehavior(Link):
         self.amplifier = amplifier
         self.holding_range = holding_range
 
-    def calculate(self, parent, child) -> None:
-        if child.op.stack and child.op.total_steps == child.op.steps_counter:
+    def calculate(self, parent, child) -> float:
+        if child.op.current_value is not None and child.op.total_steps == child.op.steps_counter:
             # Synchronize the child's state with the parent's state
             child.op.state = parent.op.state
 
@@ -172,8 +173,8 @@ class LinkSimilarBehavior(Link):
                 child.op.set_new_trend()
 
             # Initialize the child's trend values
-            child.op.start_value = child.op.stack[-1]
-            variation = (parent.op.stack[-1] - parent.op.typical_value) 
+            child.op.start_value = child.op.current_value
+            variation = (parent.op.current_value - parent.op.typical_value) 
             percentage_variation = variation / parent.op.typical_value
 
             # Calculate the child's end value based on the parent's variation
@@ -194,8 +195,7 @@ class LinkSimilarBehavior(Link):
             child.op.end_value = max(0, min(child.op.end_value, 100))
 
         # Advance the child's operator to the next step
-        child.op.next_step()
-
+        return child.op.next_step()
 
 class LinkLongReturn(Link):
     """
@@ -264,12 +264,12 @@ class LinkLongReturn(Link):
         self.back_end = None
         self.current_back = 0
 
-    def calculate(self, parent, child) -> None:
+    def calculate(self, parent, child) -> float:
         self.current_back += 1
         if parent.op.state.get_type() == RETURNING:
             self.to_back = True
 
-        if child.op.stack and child.op.total_steps == child.op.steps_counter:
+        if child.op.current_value is not None and child.op.total_steps == child.op.steps_counter:
             if self.to_back:
                 self._handle_returning_behavior(parent, child)
             else:
@@ -298,7 +298,7 @@ class LinkLongReturn(Link):
             child.op.state = parent.op.state
             child.op.set_new_trend()
 
-            child.op.start_value = child.op.stack[-1]
+            child.op.start_value = child.op.current_value
             child.op.end_value = self._calculate_return_value(
                     x0=0,
                     y0=0,
@@ -328,8 +328,8 @@ class LinkLongReturn(Link):
             child.op.set_new_trend()
 
         # Initialize the child's trend values
-        child.op.start_value = child.op.stack[-1]
-        variation = parent.op.stack[-1] - parent.op.typical_value
+        child.op.start_value = child.op.current_value
+        variation = parent.op.current_value - parent.op.typical_value
         percentage_variation = variation / parent.op.typical_value
         
         # Calculate the child's end value based on the parent's variation

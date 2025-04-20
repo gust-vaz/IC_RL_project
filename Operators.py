@@ -3,6 +3,8 @@ import random
 from math import cos, sin
 import matplotlib.pyplot as plt
 
+# BASELINE, DEVIATION, PLATEAU, RECOVERY
+
 # Constants for state machine
 NORMAL    = 0
 EXCEEDING = 1
@@ -44,7 +46,7 @@ class NormalState(State):
 	The operator can also exceed its bounds with a certain probability.
 	"""
 	def next_step(self, context: 'HighVariability') -> float:
-		if not context.stack:
+		if context.current_value is None:
 			# Generate a new value around the typical value
 			if random.random() < context.theta_prob:
 				new_value = random.uniform(
@@ -55,7 +57,7 @@ class NormalState(State):
 				new_value = context.typical_value
 		else:
 			# Generate a new value based on the previous value
-			new_value = context.stack[-1]
+			new_value = context.current_value
 			if random.random() < context.theta_prob:
 				new_value += random.uniform(-1, 1) * context.theta
 			if random.random() < context.typical_bias_prob:
@@ -83,7 +85,7 @@ class ExceedingState(State):
             # Generate a new value based on a deterministic trend with noise
 			new_value = context.ascending_descending(
 				x0=0,
-				y0=context.stack[context.start],
+				y0=context.start_value,
 				x1=context.exceed_steps_total,
 				y1=context.exceeding_peak,
 				step=context.exceed_steps_counter
@@ -128,10 +130,10 @@ class ReturningState(State):
         if context.return_steps_total > context.return_steps_counter:
             # Generate a new value based on a deterministic trend with noise
             if context.return_steps_counter == 0:
-                context.start = len(context.stack) - 1
+                context.start_value = context.current_value
             new_value = context.ascending_descending(
                 x0=0,
-                y0=context.stack[context.start],
+                y0=context.start_value,
                 x1=context.return_steps_total,
                 y1=context.typical_value,
                 step=context.return_steps_counter
@@ -140,7 +142,7 @@ class ReturningState(State):
         else:
             # Move to a new state
             context.set_state(NormalState())
-            new_value = context.stack[-1]
+            new_value = context.current_value
         return new_value
   
     def get_type(self) -> int:
@@ -282,6 +284,7 @@ class HighVariability(StandardOperator):
 
         self.name = name
         self.stack = []
+        self.current_value = None
         
         # Operator parameters about the exceeding and returning behavior
         self.exceed_prob = exceed_prob
@@ -306,7 +309,7 @@ class HighVariability(StandardOperator):
         self.exceed_steps_counter = 0
         self.return_steps_total = 0
         self.return_steps_counter = 0
-        self.start = 0
+        self.start_value = typical_value
 
         # Operator state
         self.state = NormalState()
@@ -326,7 +329,7 @@ class HighVariability(StandardOperator):
         self.hold_steps_counter = 0
         self.return_steps_total = random.randint(*self.return_duration_range)
         self.return_steps_counter = 0
-        self.start = len(self.stack) - 1
+        self.start_value = self.current_value
 
     def set_state(self, state: State) -> None:
         """
@@ -353,6 +356,7 @@ class HighVariability(StandardOperator):
         else:
             new_value = self.state.next_step(self)
         self.stack.append(new_value)
+        self.current_value = new_value
         return new_value
 
     def ascending_descending(self, x0: int, y0: float, x1: int, y1: float, step: int) -> float:
@@ -390,7 +394,7 @@ class HighVariability(StandardOperator):
         Returns:
             float: The value during the holding state.
         """
-        y = self.stack[-1]
+        y = self.current_value
         if random.random() < self.hold_prob_vary:
             y += random.uniform(-self.hold_variation, self.hold_variation)
         y = max(self.exceed_peak_value_range[0], min(y, self.exceed_peak_value_range[1]))
@@ -441,6 +445,7 @@ class LowVariability(StandardOperator):
 
         self.name = name
         self.stack = []
+        self.current_value = None
         self.total_steps = 0
         self.steps_counter = 0
         self.start_value = None
@@ -496,7 +501,7 @@ class LowVariability(StandardOperator):
             new_value = value
 
         # Initialize the stack with a value near the typical value
-        elif not self.stack:
+        elif self.current_value is None:
             new_value = random.uniform(
                 max(self.lower_bound, self.typical_value - self.theta),
                 min(self.upper_bound, self.typical_value + self.theta)
@@ -506,7 +511,7 @@ class LowVariability(StandardOperator):
         else:
             if self.total_steps == self.steps_counter:
                 self.set_new_trend()
-                self.start_value = self.stack[-1]
+                self.start_value = self.current_value
                 self.end_value = random.uniform(
                     max(self.lower_bound, self.typical_value - self.theta),
                     min(self.upper_bound, self.typical_value + self.theta)
@@ -522,4 +527,5 @@ class LowVariability(StandardOperator):
             )
 
         self.stack.append(new_value)
+        self.current_value = new_value
         return new_value
