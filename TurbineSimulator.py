@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
 from math import sin, cos
 from Operators import StandardOperator, HighVariability, LowVariability
-from Relations import Correlacao, CorrelacaoH2Metano, CorrelacaoGreatLittle, CorrelacaoDownGrowing
+from Relations import Link, LinkH2Metano, LinkSimilarBehavior, LinkLongReturn
 
 # Constants for state machine
 NORMAL    = 0
@@ -36,7 +36,7 @@ class Node:
     self.root = None
     self.edges = []
 
-  def add_edge(self, child, strategy: Correlacao):
+  def add_edge(self, child, strategy: Link):
     edge = Edge(self, child, strategy=strategy)
     self.edges.append(edge)
     child.root = self
@@ -50,20 +50,20 @@ class Node:
 
 
 class Edge:
-  def __init__(self, root: Node, child: Node, strategy: Correlacao):
+  def __init__(self, root: Node, child: Node, strategy: Link):
     self.root = root
     self.child = child
     self._strategy = strategy
 
   @property
-  def strategy(self) -> Correlacao:
+  def strategy(self) -> Link:
     """ 
     Returns the strategy itself 
     """
     return self._strategy
 
   @strategy.setter
-  def strategy(self, strategy: Correlacao) -> None:
+  def strategy(self, strategy: Link) -> None:
     """ 
     Defines a new strategy to the class 
     """
@@ -85,7 +85,7 @@ class Graph:
     self.nodes.append(node)
     return node
 
-  def add_edge(self, root: Node, child: Node, strategy: Correlacao):
+  def add_edge(self, root: Node, child: Node, strategy: Link):
     root.add_edge(child, strategy)
   
   def simulate(self, steps):
