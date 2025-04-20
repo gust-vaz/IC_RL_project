@@ -4,7 +4,7 @@ from .Operators import EXCEEDING, RETURNING
 from .Operators import StandardOperator
 from .Relations import Link
 
-plt.style.use("seaborn-whitegrid")
+plt.style.use("seaborn-v0_8-whitegrid")
 plt.rc("figure", autolayout=True, figsize=(11, 4))
 plt.rc(
     "axes",

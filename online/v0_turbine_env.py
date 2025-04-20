@@ -127,6 +127,7 @@ class TurbineEnv(gym.Env):
         # 0: do nothing, 1: perform action.
         # Training code can call action_space.sample() to randomly select an action. 
         self.action_space = spaces.Discrete(2)
+        self.last_action = None
 
         # TODO make it works with a history of n steps
         # Gym requires defining the observation space. The observation space consists of the current operators' values.
@@ -165,6 +166,7 @@ class TurbineEnv(gym.Env):
 
     # Gym required function (and parameters) to perform an action
     def step(self, action):
+        self.last_action = action
         # Determine reward and termination
         last_alert = self.graph.last_alert
         if last_alert == True and action == 0:
@@ -200,6 +202,7 @@ class TurbineEnv(gym.Env):
         if(self.render_mode == 'human'):
             print("Step: ", self.graph.current_step)
             print("Alert: ", self.graph.last_alert)
+            print("Action: ", self.last_action)
             print("Values: ", {node.name: node.last_value for node in self.nodes})
             print("")
         else:
@@ -210,7 +213,6 @@ if __name__=="__main__":
     env = gym.make('turbine-env-v0', render_mode='human')
     print(env.observation_space)
     print(env.action_space)
-    print(env.reward_space)
 
     # Use this to check our custom environment
     print("Check environment begin")
