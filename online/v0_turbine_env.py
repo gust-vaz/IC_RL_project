@@ -170,7 +170,7 @@ class TurbineEnv(gym.Env):
         # Determine reward and termination
         last_alert = self.graph.last_alert
         if last_alert == True and action == 0:
-            reward = -1
+            reward = -2
         elif last_alert == True and action == 1:
             reward = 1
         elif last_alert == False and action == 0:

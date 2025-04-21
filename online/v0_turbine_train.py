@@ -21,9 +21,9 @@ def train_sb3():
     # Start another cmd prompt and launch Tensorboard: tensorboard --logdir logs
     # Once Tensorboard is loaded, it will print a URL. Follow the URL to see the status of the training.
     # Stop the training when you're satisfied with the status.
-    TIMESTEPS = 200000
+    TIMESTEPS = 300000
     iters = 0
-    while iters < 10:
+    while iters < 1:
         iters += 1
         model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False) # train
         model.save(f"{model_dir}/a2c_{TIMESTEPS*iters}") # Save a trained model every TIMESTEPS
@@ -33,14 +33,22 @@ def test_sb3(render=True):
     env = gym.make('turbine-env-v0', render_mode='human' if render else None)
 
     # Load model
-    model = A2C.load('models/a2c_200000', env=env)
+    model = A2C.load('models/a2c_300000', env=env)
 
+    al = 0
+    unmatches = 0
     # Run a test
     obs = env.reset()[0]
     terminated = False
-    for _ in range (1000):
+    for _ in range (100000):
         action, _ = model.predict(observation=obs, deterministic=True) # Turn on deterministic, so predict always returns the same behavior
-        obs, _, _, _, _ = env.step(action)
+        obs, _, _, _, info = env.step(action)
+        if info["last_alert"]:
+            al += 1
+        if info["last_alert"] != info["last_action"]:
+            unmatches += 1
+    print("alerts = ", al)
+    print("unmatches = ", unmatches)
 
 if __name__ == '__main__':
     # Train/test using StableBaseline3
