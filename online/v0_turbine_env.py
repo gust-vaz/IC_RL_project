@@ -114,8 +114,9 @@ def create_graph(seed=None):
 class TurbineEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 1}
 
-    def __init__(self, seed=None, render_mode=None, history_lenght=20):
+    def __init__(self, seed=None, render_mode=None, history_length=20):
         self.render_mode = render_mode
+        self.history_length = history_length
 
         # Setup the graph simulator problem
         graph, nodes = create_graph()
