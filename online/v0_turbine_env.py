@@ -114,7 +114,7 @@ def create_graph(seed=None):
 class TurbineEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 1}
 
-    def __init__(self, seed=None, render_mode=None):
+    def __init__(self, seed=None, render_mode=None, history_lenght=20):
         self.render_mode = render_mode
 
         # Setup the graph simulator problem
@@ -123,20 +123,22 @@ class TurbineEnv(gym.Env):
         self.nodes = nodes
         self.n_steps = 100000 # Number of steps to simulate
 
+        # Initialize history buffer for each node
+        self.history = np.zeros((len(self.nodes), self.history_length), dtype=np.float32)
+
         # Gym requires defining the action space. The action space is 0 or 1.
         # 0: do nothing, 1: perform action.
         # Training code can call action_space.sample() to randomly select an action. 
         self.action_space = spaces.Discrete(2)
         self.last_action = None
 
-        # TODO make it works with a history of n steps
         # Gym requires defining the observation space. The observation space consists of the current operators' values.
         # The observation space is used to validate the observation returned by reset() and step().
         # Use a 1D vector: [node1.last_value, node2.last_value, ..., node12.last_value]
         self.observation_space = spaces.Box(
             low=0,
-            high=np.array([100,100,100,100,100,100,100,100,100,100,100,100]),
-            shape=(12,),
+            high=100,
+            shape=(len(self.nodes), self.history_length),
             dtype=np.float32
         )
 
@@ -149,11 +151,16 @@ class TurbineEnv(gym.Env):
         self.graph = graph
         self.nodes = nodes
 
-        # Construct the observation state:
-        # [node1.last_value, node2.last_value, ..., node12.last_value]
-        self.graph.simulate(steps=1) # Simulate one step to get the initial values of the nodes.
-        obs = np.array([node.last_value for node in self.nodes], dtype=np.float32)
-        
+        # Reset history buffer
+        self.history = np.zeros((len(self.nodes), self.history_length), dtype=np.float32)
+
+        # Simulate initial steps to populate history
+        for _ in range(self.history_length):
+            self.graph.simulate(steps=1)
+            current_values = np.array([node.last_value for node in self.nodes], dtype=np.float32)
+            self.history = np.roll(self.history, shift=-1, axis=1)
+            self.history[:, -1] = current_values
+
         # Additional info to return. For debugging or whatever.
         info = {}
 
@@ -162,11 +169,12 @@ class TurbineEnv(gym.Env):
             self.render()
 
         # Return observation and info
-        return obs, info
+        return self.history, info
 
     # Gym required function (and parameters) to perform an action
     def step(self, action):
         self.last_action = action
+
         # Determine reward and termination
         last_alert = self.graph.last_alert
         if last_alert == True and action == 0:
@@ -178,10 +186,11 @@ class TurbineEnv(gym.Env):
         elif last_alert == False and action == 1:
             reward = -0.2
 
-        # Construct the observation state: 
-        # [node1.last_value, node2.last_value, ..., node12.last_value]
-        self.graph.simulate(steps=1) # Simulate one step to get the new values of the nodes.
-        obs = np.array([node.last_value for node in self.nodes], dtype=np.float32)
+        # Simulate one step and update history
+        self.graph.simulate(steps=1)
+        current_values = np.array([node.last_value for node in self.nodes], dtype=np.float32)
+        self.history = np.roll(self.history, shift=-1, axis=1)
+        self.history[:, -1] = current_values
 
         # Determine if the episode is terminated or truncated
         terminated = False
@@ -200,7 +209,7 @@ class TurbineEnv(gym.Env):
             self.render()
 
         # Return observation, reward, terminated, truncated (not used), info
-        return obs, reward, terminated, truncated, info
+        return self.history, reward, terminated, truncated, info
 
     # Gym required function to render environment
     def render(self):
@@ -215,7 +224,7 @@ class TurbineEnv(gym.Env):
 
 # For unit testing
 if __name__=="__main__":
-    env = gym.make('turbine-env-v0', render_mode='human')
+    env = gym.make('turbine-env-v0', render_mode='human', history_length=20)
     print(env.observation_space)
     print(env.action_space)
 
