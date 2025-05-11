@@ -6,6 +6,7 @@ from simulator_modules.Operators import HighVariability, LowVariability
 from simulator_modules.Relations import LinkH2Metano, LinkSimilarBehavior, LinkLongReturn
 from simulator_modules.TurbineSimulator import Graph, plot_nodes_history, plot_sum_history
 import numpy as np
+import argparse
 
 register(
     id='turbine-env-v0',
@@ -114,9 +115,17 @@ def create_graph(seed=None):
 class TurbineEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 1}
 
-    def __init__(self, seed=None, render_mode=None, history_length=20):
+    def __init__(self, seed=None, render_mode=None, history_length=20,
+                 reward_alert_no_action=-2, reward_alert_action=1, 
+                 reward_no_alert_no_action=0, reward_no_alert_action=-0.2):
         self.render_mode = render_mode
         self.history_length = history_length
+
+        # Reward parameters
+        self.reward_alert_no_action = reward_alert_no_action
+        self.reward_alert_action = reward_alert_action
+        self.reward_no_alert_no_action = reward_no_alert_no_action
+        self.reward_no_alert_action = reward_no_alert_action
 
         # Setup the graph simulator problem
         graph, nodes = create_graph()
@@ -178,14 +187,14 @@ class TurbineEnv(gym.Env):
 
         # Determine reward and termination
         last_alert = self.graph.last_alert
-        if last_alert == True and action == 0:
-            reward = -2
-        elif last_alert == True and action == 1:
-            reward = 1
-        elif last_alert == False and action == 0:
-            reward = 0
-        elif last_alert == False and action == 1:
-            reward = -0.2
+        if last_alert and action == 0:
+            reward = self.reward_alert_no_action
+        elif last_alert and action == 1:
+            reward = self.reward_alert_action
+        elif not last_alert and action == 0:
+            reward = self.reward_no_alert_no_action
+        elif not last_alert and action == 1:
+            reward = self.reward_no_alert_action
 
         # Simulate one step and update history
         self.graph.simulate(steps=1)
@@ -224,8 +233,26 @@ class TurbineEnv(gym.Env):
             raise NotImplementedError("Render mode not implemented.")
 
 # For unit testing
-if __name__=="__main__":
-    env = gym.make('turbine-env-v0', render_mode='human', history_length=20)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Turbine Environment Simulation")
+    parser.add_argument("--simulate", action="store_true", help="Run the environment simulation")
+    parser.add_argument("--render_mode", type=str, default="human", help="Render mode for the environment")
+    parser.add_argument("--history_length", type=int, default=20, help="Length of the history buffer")
+    parser.add_argument("--reward_alert_no_action", type=float, default=-2, help="Reward for alert and no action")
+    parser.add_argument("--reward_alert_action", type=float, default=1, help="Reward for alert and action")
+    parser.add_argument("--reward_no_alert_no_action", type=float, default=0, help="Reward for no alert and no action")
+    parser.add_argument("--reward_no_alert_action", type=float, default=-0.2, help="Reward for no alert and action")
+    args = parser.parse_args()
+
+    env = gym.make(
+        'turbine-env-v0',
+        render_mode=args.render_mode,
+        history_length=args.history_length,
+        reward_alert_no_action=args.reward_alert_no_action,
+        reward_alert_action=args.reward_alert_action,
+        reward_no_alert_no_action=args.reward_no_alert_no_action,
+        reward_no_alert_action=args.reward_no_alert_action
+    )
     print(env.observation_space)
     print(env.action_space)
 
@@ -234,12 +261,13 @@ if __name__=="__main__":
     check_env(env.unwrapped)
     print("Check environment end")
 
-    print("\STARTING RANDOM RUN\n")
-    # Reset environment
-    env.reset()
+    if args.simulate:
+        print("\nSTARTING RANDOM RUN\n")
+        # Reset environment
+        env.reset()
 
-    # Take some random actions
-    truncated = False
-    while(not truncated):
-        rand_action = env.action_space.sample()
-        obs, _, _, truncated, _ = env.step(rand_action)
+        # Take some random actions
+        truncated = False
+        while not truncated:
+            rand_action = env.action_space.sample()
+            obs, _, _, truncated, _ = env.step(rand_action)
