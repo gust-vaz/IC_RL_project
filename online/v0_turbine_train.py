@@ -28,7 +28,7 @@ def train_sb3(env_args, timesteps=300000):
 
 # Test using StableBaseline3. Lots of hardcoding for simplicity.
 def test_sb3(env_args, timesteps, render):
-    env = gym.make('turbine-env-v0', render_mode='human' if render else None)
+    env = gym.make('turbine-env-v0', **env_args)
 
     # Load model
     model = A2C.load(f"models/a2c_{timesteps}", env=env)
@@ -48,7 +48,7 @@ def test_sb3(env_args, timesteps, render):
     accuracy = accuracy_score(y_true, y_pred)
     print(f"Accuracy: {accuracy:.4f}")
     print("Classification Report:")
-    print(classification_report(y_true, y_pred))
+    print(classification_report(y_true, y_pred, zero_division=1))
 
     # Confusion matrix
     cm = confusion_matrix(y_true, y_pred)
@@ -57,10 +57,12 @@ def test_sb3(env_args, timesteps, render):
     plt.xlabel('Predicted')
     plt.ylabel('True')
     plt.title('Confusion Matrix')
-    plt.show()
+    plt.savefig('confusion_matrix.png')  # Save the plot as an image file
+    plt.close()  # Close the plot to free up memory
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train and test the Turbine environment using Stable Baselines3.")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility.")
     parser.add_argument("--train", action="store_true", help="Train the model.")
     parser.add_argument("--test", action="store_true", help="Test the model.")
     parser.add_argument("--timesteps", type=int, default=300000, help="Number of timesteps for training.")
@@ -73,6 +75,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     env_args = {
+        "seed": args.seed,
         "history_length": args.history_length,
         "reward_alert_no_action": args.reward_alert_no_action,
         "reward_alert_action": args.reward_alert_action,

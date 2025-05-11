@@ -120,6 +120,7 @@ class TurbineEnv(gym.Env):
                  reward_no_alert_no_action=0, reward_no_alert_action=-0.2):
         self.render_mode = render_mode
         self.history_length = history_length
+        self.seed = seed
 
         # Reward parameters
         self.reward_alert_no_action = reward_alert_no_action
@@ -128,7 +129,7 @@ class TurbineEnv(gym.Env):
         self.reward_no_alert_action = reward_no_alert_action
 
         # Setup the graph simulator problem
-        graph, nodes = create_graph()
+        graph, nodes = create_graph(self.seed)
         self.graph = graph
         self.nodes = nodes
         self.n_steps = 100000 # Number of steps to simulate
@@ -154,10 +155,10 @@ class TurbineEnv(gym.Env):
 
     # Gym required function (and parameters) to reset the environment
     def reset(self, seed=None, options=None):
-        super().reset(seed=seed) # gym requires this call to control randomness and reproduce scenarios.
-
+        super().reset(seed=seed)
         # Reset the simulator. Optionally, pass in seed control randomness and reproduce scenarios.
-        graph, nodes = create_graph(seed=seed)
+        self.seed += 1
+        graph, nodes = create_graph(seed=self.seed)
         self.graph = graph
         self.nodes = nodes
 
@@ -235,6 +236,7 @@ class TurbineEnv(gym.Env):
 # For unit testing
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Turbine Environment Simulation")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for the environment")
     parser.add_argument("--simulate", action="store_true", help="Run the environment simulation")
     parser.add_argument("--render_mode", type=str, default="human", help="Render mode for the environment")
     parser.add_argument("--history_length", type=int, default=20, help="Length of the history buffer")
@@ -246,6 +248,7 @@ if __name__ == "__main__":
 
     env = gym.make(
         'turbine-env-v0',
+        seed=args.seed,
         render_mode=args.render_mode,
         history_length=args.history_length,
         reward_alert_no_action=args.reward_alert_no_action,
