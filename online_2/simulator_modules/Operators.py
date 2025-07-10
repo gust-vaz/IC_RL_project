@@ -3,6 +3,10 @@ import random
 from math import cos, sin
 import matplotlib.pyplot as plt
 
+# TODO: class MaxEnergyPossible based on H2 and Metan
+# TODO: class GeneratedEnergy   based on MaxEnergyPossible
+# TODO: constants to define MaxAlertThreshold and MinAlertThreshold
+
 # BASELINE, DEVIATION, PLATEAU, RECOVERY
 
 # Constants for state machine

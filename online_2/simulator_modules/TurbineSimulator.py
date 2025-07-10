@@ -1,4 +1,5 @@
 import random
+from typing import List
 import matplotlib.pyplot as plt
 from .Operators import EXCEEDING, RETURNING
 from .Operators import StandardOperator
@@ -47,8 +48,9 @@ class Node:
         self.edges = []
         self.last_value = None
         self.stack = []
+        self.other_influences = None
 
-    def add_edge(self, child: "Node", strategy: Link) -> None:
+    def add_edge(self, child: "Node", strategy: Link, other_influences: List["Node"] = None) -> None:
         """
         Adds an edge between this node and a child node.
 
@@ -59,6 +61,7 @@ class Node:
         edge = Edge(self, child, strategy=strategy)
         self.edges.append(edge)
         child.root = self
+        child.other_influences = other_influences
   
     def simulate_component(self, debug: bool = False) -> None:
         """
@@ -134,7 +137,11 @@ class Edge:
         Parameters:
             debug (bool, optional): Whether to store the generated values in the child's stack for debugging.
         """
-        self.child.last_value = self._strategy.calculate(self.root, self.child)
+        if self.child.other_influences is not None:
+            influences = (self.child.other_influences or []) + [self.root]
+            self.child.last_value = self._strategy.calculate(influences, self.child)
+        else:
+            self.child.last_value = self._strategy.calculate(self.root, self.child)
         if debug:
             self.child.stack.append(self.child.last_value)
 
@@ -187,7 +194,7 @@ class Graph:
         self.nodes.append(node)
         return node
 
-    def add_edge(self, root: Node, child: Node, strategy: Link) -> None:
+    def add_edge(self, root: Node, child: Node, strategy: Link, other_influences: List[Node] = None) -> None:
         """
         Adds an edge between two nodes.
 
@@ -196,7 +203,7 @@ class Graph:
             child (Node): The child node.
             strategy (Link): The strategy defining the relationship between the nodes.
         """
-        root.add_edge(child, strategy)
+        root.add_edge(child, strategy, other_influences)
   
     def simulate(self, steps: int) -> None:
         """
@@ -263,7 +270,7 @@ class Graph:
         plt.show()
 
 
-def plot_nodes_history(nodes: list[Node], range: tuple = None) -> None:
+def plot_nodes_history(nodes: list[Node], range: tuple = None, constants: list[int] = None) -> None:
     """
     Plots the history of values for a list of nodes.
 
@@ -280,6 +287,15 @@ def plot_nodes_history(nodes: list[Node], range: tuple = None) -> None:
         else:
             plt.plot(node.stack, label=node.name)
         title += f"{node.name}, "
+    # Plot constants if provided
+    if constants is not None:
+        if range:
+            start, end = range
+            steps = end - start
+        else:
+            steps = len(nodes[0].stack) if nodes else 0
+        for idx, const in enumerate(constants):
+            plt.plot([const] * steps, label=f"Constant {idx+1}", linestyle="--")
     plt.title(f"Value Stack History: {title.strip(', ')}")
     plt.xlabel("Steps")
     plt.ylabel("Values")

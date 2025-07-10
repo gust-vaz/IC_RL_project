@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from math import sin, cos
+from math import sin, cos, log
 # from TurbineSimulator import Node
 import random
 
@@ -373,3 +373,70 @@ class LinkLongReturn(Link):
 
         y = max(0, min(y, 100))
         return y
+
+class LinkMaxEnergyFuel(Link):
+    def __init__(self, start_point: float,
+                 typical_bias_prob: float,
+                 typical_bias: float,
+                 theta_prob: float):
+        """ """
+        self.start_point = start_point
+        self.typical_bias_prob = typical_bias_prob
+        self.typical_bias = typical_bias
+        self.theta_prob = theta_prob
+
+        self.time = -1
+
+    def calculate(self, parents, child):
+        self.time += 1
+        if child.op.current_value is not None and child.op.total_steps == child.op.steps_counter:
+            if parents[1].op.state.get_type() == RETURNING:
+                self.time = min(1000, self.time)
+            # Set a new trend for the child
+            child.op.set_new_trend()
+            
+            # Initialize the child's trend values
+            child.op.start_value = child.op.current_value
+
+            # Define end value
+            end_time = self.time + child.op.total_steps
+            # child.op.end_value = 80 * log((end_time + 20) / 15, 20)
+            # child.op.end_value = parents[1].op.current_value * log((end_time + 20) / 15, 20)
+            # child.op.end_value = parents[0].op.current_value * log((end_time + 20) / 15, 20)
+            child.op.end_value = 0.9 * (0.5 * parents[0].op.current_value + 0.3 * parents[1].op.current_value) * log((end_time + 20) / 15, 20)
+            child.op.end_value = max(0, min(child.op.end_value, 100))
+        
+        elif child.op.current_value is None:
+            return child.op.next_step(value=80*log((20) / 15, 20))
+        
+        return child.op.next_step()
+
+class LinkGeneratedEnergy(Link):
+    def __init__(self, typical_bias_prob: float,
+                 typical_bias: float,
+                 theta_prob: float,
+                 theta_bias: float):
+        """ """
+        self.typical_bias_prob = typical_bias_prob
+        self.typical_bias = typical_bias
+        self.theta_prob = theta_prob
+        self.theta_bias = theta_bias
+    
+    def calculate(self, parent, child):
+        if child.op.current_value is not None and child.op.total_steps == child.op.steps_counter:
+            # Set a new trend for the child
+            child.op.set_new_trend()
+            
+            # Initialize the child's trend values
+            child.op.start_value = child.op.current_value
+            
+            child.op.end_value = parent.op.end_value * random.uniform(0.8, 1.0)
+            if random.random() < self.theta_prob:
+                child.op.end_value -= (parent.op.end_value - child.op.end_value) * self.theta_bias
+            if random.random() < self.typical_bias_prob:
+                child.op.end_value += (parent.op.end_value - child.op.end_value) * self.typical_bias
+
+        elif child.op.current_value is None:
+            return child.op.next_step(parent.op.current_value)
+        
+        return child.op.next_step()
