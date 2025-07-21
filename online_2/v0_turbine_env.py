@@ -2,8 +2,8 @@ import gymnasium as gym
 from gymnasium import spaces
 from gymnasium.envs.registration import register
 from gymnasium.utils.env_checker import check_env
-from simulator_modules.Operators import HighVariability, LowVariability
-from simulator_modules.Relations import LinkH2Metano, LinkSimilarBehavior, LinkLongReturn
+from simulator_modules.Operators import HighVariability, LowVariability, NORMAL
+from simulator_modules.Relations import LinkH2Metano, LinkSimilarBehavior, LinkLongReturn, LinkMaxEnergyFuel, LinkGeneratedEnergy
 from simulator_modules.TurbineSimulator import Graph, plot_nodes_history, plot_sum_history
 import numpy as np
 import argparse
@@ -23,110 +23,54 @@ def create_nodes_and_relations(prob=0.0001):
                          hold_duration_range=(1500, 2000), hold_prob_vary=0.05, hold_variation=1)
     Metano = HighVariability(lower_bound=30, upper_bound=70, typical_value=40, name="Metano",
                              typical_bias=0.1, typical_bias_prob=0.1, theta=1.5, theta_prob=0.1)
-    Enxofre = LowVariability(lower_bound=0, upper_bound=8, typical_value=0.002, name="Enxofre",
-                             theta=0.002, steps_range=(480, 700))
-    Etileno = LowVariability(lower_bound=0.05, upper_bound=0.55, typical_value=0.2, name="Etileno",
-                             theta=0.05, steps_range=(480, 700))
-    NButano = LowVariability(lower_bound=0.01, upper_bound=0.45, typical_value=0.15, name="N-Butano",
-                             theta=0.03, steps_range=(480, 700))
-    Etano = LowVariability(lower_bound=0.06, upper_bound=1.8, typical_value=0.43, name="Etano",
-                           theta=0.7, steps_range=(240, 480))
-    Propano = LowVariability(lower_bound=0, upper_bound=0.69, typical_value=0.2, name="Propano",
-                             theta=0.1, steps_range=(240, 480))
-    C5 = LowVariability(lower_bound=0, upper_bound=0.3, typical_value=0.021, name="C5+",
-                        theta=0.01, steps_range=(240, 480))
-    CO2 = LowVariability(lower_bound=0, upper_bound=0.3, typical_value=0.2, name="CO2",
-                         theta=0.1, steps_range=(240, 480))
-    Propileno = LowVariability(lower_bound=0.06, upper_bound=0.3, typical_value=0.21, name="Propileno",
-                               theta=0.02, steps_range=(480, 700))
-    CO = LowVariability(lower_bound=0, upper_bound=0.8, typical_value=0.6, name="CO",
-                        theta=0.1, steps_range=(480, 700))
-    vazao = LowVariability(lower_bound=3, upper_bound=10, typical_value=7, name="Vazão",
-                           theta=1, steps_range=(5, 10))
-
+    MaxEnergy = LowVariability(lower_bound=0, upper_bound=100, typical_value=20, name="MaxEnergy",
+                           theta=0.7, steps_range=(100, 200))
+    GeneratedEnergy = LowVariability(lower_bound=0, upper_bound=100, typical_value=40, name="GeneratedEnergy",
+                                     theta=0.7, steps_range=(100,200))
     # Create relations
     relations = {
         "relation1": LinkH2Metano(limit_lower_bound=75, limit_upper_bound=100,
                                   typical_lower_bound=93, typical_upper_bound=98),
-        "relation2": LinkSimilarBehavior(correlation=0.3, typical_bias_prob=0.1,
-                                         typical_bias=0.6, theta_prob=0.5),
-        "relation3": LinkSimilarBehavior(correlation=0.6, typical_bias_prob=0.1,
-                                         typical_bias=0.01, theta_prob=0.5, amplifier=1.8),
-        "relation4": LinkSimilarBehavior(correlation=0.7, typical_bias_prob=0.4,
-                                         typical_bias=0.4, theta_prob=0.5),
-        "relation5": LinkSimilarBehavior(correlation=0.85, typical_bias_prob=0.1,
-                                         typical_bias=0.4, theta_prob=0.7, amplifier=14,
-                                         holding_range=(50, 60)),
-        "relation6": LinkSimilarBehavior(correlation=0.94, typical_bias_prob=0.01,
-                                         typical_bias=0.8, theta_prob=0.7, amplifier=14,
-                                         holding_range=(50, 60)),
-        "relation7": LinkSimilarBehavior(correlation=0.89, typical_bias=0.01,
-                                         typical_bias_prob=0.1, theta_prob=0.7, amplifier=10,
-                                         holding_range=(180, 300)),
-        "relation8": LinkSimilarBehavior(correlation=0.92, typical_bias=0.1,
-                                         typical_bias_prob=0.1, theta_prob=0.7, amplifier=10,
-                                         holding_range=(180, 230)),
-        "relation9": LinkLongReturn(correlation=0.5, typical_bias_prob=0.1,
-                                    typical_bias=0.1, theta_prob=0.5, amplifier=1.8,
-                                    holding_range=(480, 700), back_range=(6000, 7200),
-                                    back_typical_prob=0.7, back_typical_range=(-0.02, 0.02)),
-        "relation10": LinkLongReturn(correlation=0.5, typical_bias_prob=0.1,
-                                     typical_bias=0.1, theta_prob=0.5, amplifier=1.8,
-                                     holding_range=(480, 700), back_range=(6000, 7200),
-                                     back_typical_prob=0.7, back_typical_range=(-0.02, 0.02)),
-        "relation11": LinkSimilarBehavior(correlation=0.92, typical_bias=0.1,
-                                          typical_bias_prob=0.5, theta_prob=1, amplifier=1.4,
-                                          holding_range=(20, 30))
+        "relation2": LinkMaxEnergyFuel(start_point=0, typical_bias_prob=0.01, typical_bias=1,
+                                       theta_prob=0.01),
+        "relation3": LinkGeneratedEnergy(typical_bias_prob=0, typical_bias=0.2,
+                                         theta_prob=0.7, theta_bias=0.8),
     }
 
-    return H2, Metano, Enxofre, Etileno, NButano, Etano, Propano, C5, CO2, Propileno, CO, vazao, relations
+    return H2, Metano, MaxEnergy, GeneratedEnergy, relations
 
-def create_graph(seed=None):
-    H2, Metano, Enxofre, Etileno, NButano, Etano, Propano, C5, CO2, Propileno, CO, vazao, relations = create_nodes_and_relations()
+def create_graph():
+    H2, Metano, MaxEnergy, GeneratedEnergy, relations = create_nodes_and_relations()
 
-    graph = Graph(random_seed=seed, debug=False, n_unstable_steps=480)
+    graph = Graph(random_seed=44, debug=False, n_unstable_steps=480)
     node1 = graph.add_node(H2)
     node2 = graph.add_node(Metano)
+    node3 = graph.add_node(MaxEnergy)
+    node4 = graph.add_node(GeneratedEnergy)
     graph.add_edge(root=node1, child=node2, strategy=relations["relation1"])
-    node3 = graph.add_node(Enxofre)
-    graph.add_edge(root=node1, child=node3, strategy=relations["relation2"])
-    node4 = graph.add_node(Etileno)
-    graph.add_edge(root=node1, child=node4, strategy=relations["relation3"])
-    node5 = graph.add_node(NButano)
-    graph.add_edge(root=node1, child=node5, strategy=relations["relation4"])
-    node6 = graph.add_node(Etano)
-    graph.add_edge(root=node2, child=node6, strategy=relations["relation5"])
-    node7 = graph.add_node(Propano)
-    graph.add_edge(root=node2, child=node7, strategy=relations["relation6"])
-    node8 = graph.add_node(C5)
-    graph.add_edge(root=node2, child=node8, strategy=relations["relation7"])
-    node9 = graph.add_node(CO2)
-    graph.add_edge(root=node2, child=node9, strategy=relations["relation8"])
-    node10 = graph.add_node(Propileno)
-    graph.add_edge(root=node1, child=node10, strategy=relations["relation9"])
-    node11 = graph.add_node(CO)
-    graph.add_edge(root=node1, child=node11, strategy=relations["relation10"])
-    node12 = graph.add_node(vazao)
-    graph.add_edge(root=node1, child=node12, strategy=relations["relation11"])
+    graph.add_edge(root=node1, child=node3, strategy=relations["relation2"], other_influences=[node2])
+    graph.add_edge(root=node3, child=node4, strategy=relations["relation3"])
 
-    return graph, [node1, node2, node3, node4, node5, node6, node7, node8, node9, node10, node11, node12]
-
+    return graph, [node1, node2, node3, node4]
 
 class TurbineEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 1}
 
     def __init__(self, seed=None, render_mode=None, history_length=20,
-                 reward_alert_no_action=-2, reward_alert_action=1, 
-                 reward_no_alert_no_action=0, reward_no_alert_action=-0.2):
+                 reward_1=-20, reward_2=-3, 
+                 reward_3=0.001, reward_4=-0.2,
+                 lower_threshold=50, upper_threshold=70):
         self.render_mode = render_mode
         self.history_length = history_length
+        self.lower_threshold = lower_threshold
+        self.upper_threshold = upper_threshold
         self.seed = seed
 
         # Reward parameters
-        self.reward_alert_no_action = reward_alert_no_action
-        self.reward_alert_action = reward_alert_action
-        self.reward_no_alert_no_action = reward_no_alert_no_action
-        self.reward_no_alert_action = reward_no_alert_action
+        self.reward_1 = reward_1
+        self.reward_2 = reward_2
+        self.reward_3 = reward_3
+        self.reward_4 = reward_4
 
         # Setup the graph simulator problem
         graph, nodes = create_graph(self.seed)
@@ -185,23 +129,25 @@ class TurbineEnv(gym.Env):
     # Gym required function (and parameters) to perform an action
     def step(self, action):
         self.last_action = action
-
-        # Determine reward and termination
-        last_alert = self.graph.last_alert
-        if last_alert and action == 0:
-            reward = self.reward_alert_no_action
-        elif last_alert and action == 1:
-            reward = self.reward_alert_action
-        elif not last_alert and action == 0:
-            reward = self.reward_no_alert_no_action
-        elif not last_alert and action == 1:
-            reward = self.reward_no_alert_action
+        other_information = {'alert': action == 1}
 
         # Simulate one step and update history
-        self.graph.simulate(steps=1)
+        self.graph.simulate(steps=1, other_informations=other_information)
         current_values = np.array([node.last_value for node in self.nodes], dtype=np.float32)
         self.history = np.roll(self.history, shift=-1, axis=1)
         self.history[:, -1] = current_values
+
+        # Determine reward and termination
+        generated_energy = self.history[3, -1]  # Last value of the GeneratedEnergy node
+        state = self.nodes[0].op.state.get_type()
+        # max_energy = self.history[2, -1]  # Last value of the MaxEnergy node
+
+        if generated_energy > self.upper_threshold and self.last_action == 0:
+            reward = self.reward_1
+        elif state != NORMAL and generated_energy < self.lower_threshold and self.last_action == 1:
+            reward = self.reward_2
+        else:
+            reward = self.reward_3
 
         # Determine if the episode is terminated or truncated
         terminated = False
@@ -209,7 +155,7 @@ class TurbineEnv(gym.Env):
 
         # Additional info to return. For debugging or whatever.
         info = {
-            "last_alert": last_alert,
+            # "last_alert": self.last_action,
             "current_step": self.graph.current_step,
             "last_action": action,
             "reward": reward
@@ -226,7 +172,7 @@ class TurbineEnv(gym.Env):
     def render(self):
         if(self.render_mode == 'human'):
             print("Step: ", self.graph.current_step)
-            print("Alert: ", self.graph.last_alert)
+            # print("Alert: ", self.graph.last_alert)
             print("Action: ", self.last_action)
             print("Values: ", {node.name: node.last_value for node in self.nodes})
             print("")
@@ -240,10 +186,10 @@ if __name__ == "__main__":
     parser.add_argument("--simulate", action="store_true", help="Run the environment simulation")
     parser.add_argument("--render_mode", type=str, default="human", help="Render mode for the environment")
     parser.add_argument("--history_length", type=int, default=20, help="Length of the history buffer")
-    parser.add_argument("--reward_alert_no_action", type=float, default=-2, help="Reward for alert and no action")
-    parser.add_argument("--reward_alert_action", type=float, default=1, help="Reward for alert and action")
-    parser.add_argument("--reward_no_alert_no_action", type=float, default=0, help="Reward for no alert and no action")
-    parser.add_argument("--reward_no_alert_action", type=float, default=-0.2, help="Reward for no alert and action")
+    parser.add_argument("--reward_1", type=float, default=-20, help="Reward for alert and no action")
+    parser.add_argument("--reward_2", type=float, default=-3, help="Reward for alert and action")
+    parser.add_argument("--reward_3", type=float, default=0.001, help="Reward for no alert and no action")
+    parser.add_argument("--reward_4", type=float, default=-0.2, help="Reward for no alert and action")
     args = parser.parse_args()
 
     env = gym.make(
@@ -251,10 +197,10 @@ if __name__ == "__main__":
         seed=args.seed,
         render_mode=args.render_mode,
         history_length=args.history_length,
-        reward_alert_no_action=args.reward_alert_no_action,
-        reward_alert_action=args.reward_alert_action,
-        reward_no_alert_no_action=args.reward_no_alert_no_action,
-        reward_no_alert_action=args.reward_no_alert_action
+        reward_1=args.reward_1,
+        reward_2=args.reward_2,
+        reward_3=args.reward_3,
+        reward_4=args.reward_4
     )
     print(env.observation_space)
     print(env.action_space)

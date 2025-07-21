@@ -41,24 +41,25 @@ def test_sb3(env_args, timesteps, render):
     for _ in range(100000):
         action, _ = model.predict(observation=obs, deterministic=True)  # Turn on deterministic, so predict always returns the same behavior
         obs, _, _, _, info = env.step(action)
-        y_true.append(info["last_alert"])
+        # y_true.append(info["last_alert"])
         y_pred.append(info["last_action"])
 
+    print("Testing completed:", sum(y_pred))
     # Calculate metrics
-    accuracy = accuracy_score(y_true, y_pred)
-    print(f"Accuracy: {accuracy:.4f}")
-    print("Classification Report:")
-    print(classification_report(y_true, y_pred, zero_division=1))
+    # accuracy = accuracy_score(y_true, y_pred)
+    # print(f"Accuracy: {accuracy:.4f}")
+    # print("Classification Report:")
+    # print(classification_report(y_true, y_pred, zero_division=1))
 
     # Confusion matrix
-    cm = confusion_matrix(y_true, y_pred)
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=np.unique(y_true), yticklabels=np.unique(y_true))
-    plt.xlabel('Predicted')
-    plt.ylabel('True')
-    plt.title('Confusion Matrix')
-    plt.savefig('confusion_matrix.png')  # Save the plot as an image file
-    plt.close()  # Close the plot to free up memory
+    # cm = confusion_matrix(y_true, y_pred)
+    # plt.figure(figsize=(8, 6))
+    # sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=np.unique(y_true), yticklabels=np.unique(y_true))
+    # plt.xlabel('Predicted')
+    # plt.ylabel('True')
+    # plt.title('Confusion Matrix')
+    # plt.savefig('confusion_matrix.png')  # Save the plot as an image file
+    # plt.close()  # Close the plot to free up memory
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train and test the Turbine environment using Stable Baselines3.")
@@ -68,19 +69,19 @@ if __name__ == '__main__':
     parser.add_argument("--timesteps", type=int, default=300000, help="Number of timesteps for training.")
     parser.add_argument("--render", action="store_true", help="Render the environment during testing.")
     parser.add_argument("--history_length", type=int, default=20, help="Length of the history buffer.")
-    parser.add_argument("--reward_alert_no_action", type=float, default=-2, help="Reward for alert and no action.")
-    parser.add_argument("--reward_alert_action", type=float, default=1, help="Reward for alert and action.")
-    parser.add_argument("--reward_no_alert_no_action", type=float, default=0, help="Reward for no alert and no action.")
-    parser.add_argument("--reward_no_alert_action", type=float, default=-0.2, help="Reward for no alert and action.")
+    parser.add_argument("--reward_1", type=float, default=-20, help="Reward for alert and no action")
+    parser.add_argument("--reward_2", type=float, default=-3, help="Reward for alert and action")
+    parser.add_argument("--reward_3", type=float, default=0.001, help="Reward for no alert and no action")
+    parser.add_argument("--reward_4", type=float, default=-0.2, help="Reward for no alert and action")
     args = parser.parse_args()
 
     env_args = {
         "seed": args.seed,
         "history_length": args.history_length,
-        "reward_alert_no_action": args.reward_alert_no_action,
-        "reward_alert_action": args.reward_alert_action,
-        "reward_no_alert_no_action": args.reward_no_alert_no_action,
-        "reward_no_alert_action": args.reward_no_alert_action,
+        "reward_1": args.reward_1,
+        "reward_2": args.reward_2,
+        "reward_3": args.reward_3,
+        "reward_4": args.reward_4,
     }
 
     if args.train:

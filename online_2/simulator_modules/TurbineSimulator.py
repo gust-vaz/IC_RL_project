@@ -1,5 +1,5 @@
 import random
-from typing import List
+from typing import Dict, List
 import matplotlib.pyplot as plt
 from .Operators import EXCEEDING, RETURNING
 from .Operators import StandardOperator
@@ -63,7 +63,7 @@ class Node:
         child.root = self
         child.other_influences = other_influences
   
-    def simulate_component(self, debug: bool = False) -> None:
+    def simulate_component(self, debug: bool = False, other_informations = None) -> None:
         """
         Simulates the behavior of this node and its children.
 
@@ -75,8 +75,8 @@ class Node:
             if debug:
                 self.stack.append(self.last_value)
         for edge in self.edges:
-            edge.next_step(debug)
-            edge.child.simulate_component(debug)
+            edge.next_step(debug, other_informations=other_informations)
+            edge.child.simulate_component(debug, other_informations=other_informations)
     
     def plot_history(self, size: tuple = (10, 5)) -> None:
         """
@@ -130,7 +130,7 @@ class Edge:
         """Sets a new strategy for the edge."""
         self._strategy = strategy
   
-    def next_step(self, debug: bool = False) -> None:
+    def next_step(self, debug: bool = False, other_informations = None) -> None:
         """
         Calculates the next step for the child node based on the strategy.
 
@@ -141,7 +141,10 @@ class Edge:
             influences = (self.child.other_influences or []) + [self.root]
             self.child.last_value = self._strategy.calculate(influences, self.child)
         else:
-            self.child.last_value = self._strategy.calculate(self.root, self.child)
+            if self.child.name == 'GeneratedEnergy':
+                self.child.last_value = self._strategy.calculate(self.root, self.child, other_informations=other_informations)
+            else:
+                self.child.last_value = self._strategy.calculate(self.root, self.child)
         if debug:
             self.child.stack.append(self.child.last_value)
 
@@ -205,7 +208,7 @@ class Graph:
         """
         root.add_edge(child, strategy, other_influences)
   
-    def simulate(self, steps: int) -> None:
+    def simulate(self, steps: int, other_informations = None) -> None:
         """
         Simulates the graph for a given number of steps.
 
@@ -216,7 +219,7 @@ class Graph:
             self.current_step += 1
             for node in self.nodes:
                 if node.root is None:
-                    node.simulate_component(self.debug)
+                    node.simulate_component(self.debug, other_informations=other_informations)
                     current_state = node.op.state.get_type()
 
                     # Generate alert period logic
