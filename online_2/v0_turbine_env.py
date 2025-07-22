@@ -39,10 +39,10 @@ def create_nodes_and_relations(prob=0.0001):
 
     return H2, Metano, MaxEnergy, GeneratedEnergy, relations
 
-def create_graph():
+def create_graph(seed=None):
     H2, Metano, MaxEnergy, GeneratedEnergy, relations = create_nodes_and_relations()
 
-    graph = Graph(random_seed=44, debug=False, n_unstable_steps=480)
+    graph = Graph(random_seed=seed, debug=False, n_unstable_steps=480)
     node1 = graph.add_node(H2)
     node2 = graph.add_node(Metano)
     node3 = graph.add_node(MaxEnergy)
