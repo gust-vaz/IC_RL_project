@@ -57,9 +57,9 @@ class TurbineEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 1}
 
     def __init__(self, seed=None, render_mode=None, history_length=20,
-                 reward_1=-20, reward_2=-3, 
+                 reward_1=-20, reward_2=-3,
                  reward_3=0.001, reward_4=-0.2,
-                 lower_threshold=50, upper_threshold=70):
+                 lower_threshold=50, upper_threshold=70, steps=100000):
         self.render_mode = render_mode
         self.history_length = history_length
         self.lower_threshold = lower_threshold
@@ -76,14 +76,14 @@ class TurbineEnv(gym.Env):
         graph, nodes = create_graph(self.seed)
         self.graph = graph
         self.nodes = nodes
-        self.n_steps = 100000 # Number of steps to simulate
+        self.n_steps = steps # Number of steps to simulate
 
         # Initialize history buffer for each node
         self.history = np.zeros((len(self.nodes), self.history_length), dtype=np.float32)
 
         # Gym requires defining the action space. The action space is 0 or 1.
         # 0: do nothing, 1: perform action.
-        # Training code can call action_space.sample() to randomly select an action. 
+        # Training code can call action_space.sample() to randomly select an action.
         self.action_space = spaces.Discrete(2)
         self.last_action = None
 
@@ -142,9 +142,15 @@ class TurbineEnv(gym.Env):
         state = self.nodes[0].op.state.get_type()
         # max_energy = self.history[2, -1]  # Last value of the MaxEnergy node
 
-        if generated_energy > self.upper_threshold and self.last_action == 0:
+        '''if generated_energy > self.upper_threshold and self.last_action == 0:
             reward = self.reward_1
         elif state != NORMAL and generated_energy < self.lower_threshold and self.last_action == 1:
+            reward = self.reward_2
+        else:
+            reward = self.reward_3'''
+        if generated_energy > self.upper_threshold and self.last_action == 0:
+            reward = self.reward_1
+        elif generated_energy < self.upper_threshold and self.last_action == 1:
             reward = self.reward_2
         else:
             reward = self.reward_3

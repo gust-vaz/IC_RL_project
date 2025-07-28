@@ -1,6 +1,7 @@
 import argparse
+import json
 import gymnasium as gym
-from stable_baselines3 import A2C
+from stable_baselines3 import A2C, DQN
 import v0_turbine_env # Even though we don't use this class here, we should include it here so that it registers the WarehouseRobot environment.
 import os
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
@@ -20,8 +21,8 @@ def train_sb3(env_args, timesteps=300000):
 
     # Use Advantage Actor Critic (A2C) algorithm.
     # Use MlpPolicy for observation space 1D vector.
-    model = A2C('MlpPolicy', env, verbose=1, device='cuda', tensorboard_log=log_dir)
-   
+    model = DQN('MlpPolicy', env, verbose=1, device='cuda', tensorboard_log=log_dir)
+
     # Train the model
     model.learn(total_timesteps=timesteps, reset_num_timesteps=False)
     model.save(f"{model_dir}/a2c_{timesteps}")
@@ -31,35 +32,48 @@ def test_sb3(env_args, timesteps, render):
     env = gym.make('turbine-env-v0', **env_args)
 
     # Load model
-    model = A2C.load(f"models/a2c_{timesteps}", env=env)
+    model = DQN.load(f"models/a2c_{timesteps}", env=env)
 
-    y_true = []
-    y_pred = []
+    H2_history = []
+    Metano_history = []
+    MaxEnergy_history = []
+    GeneratedEnergy_history = []
+
+    action_history = []
+    save_every = env_args.get("history_length", 20)
+    save_data = []
 
     # Run a test
     obs = env.reset()[0]
-    for _ in range(100000):
-        action, _ = model.predict(observation=obs, deterministic=True)  # Turn on deterministic, so predict always returns the same behavior
-        obs, _, _, _, info = env.step(action)
-        # y_true.append(info["last_alert"])
-        y_pred.append(info["last_action"])
+    for i in range(20000):
+        action, _ = model.predict(observation=obs, deterministic=True)
+        obs, _, _, _, _ = env.step(action)
+        action_history.append(int(action))
+        if (i + 1) % save_every == 0:
+            H2_history.extend(obs[0])
+            Metano_history.extend(obs[1])
+            MaxEnergy_history.extend(obs[2])
+            GeneratedEnergy_history.extend(obs[3])
 
-    print("Testing completed:", sum(y_pred))
-    # Calculate metrics
-    # accuracy = accuracy_score(y_true, y_pred)
-    # print(f"Accuracy: {accuracy:.4f}")
-    # print("Classification Report:")
-    # print(classification_report(y_true, y_pred, zero_division=1))
+    def to_serializable(val):
+        if isinstance(val, np.ndarray):
+            return val.tolist()
+        if isinstance(val, np.generic):
+            return val.item()
+        return val
 
-    # Confusion matrix
-    # cm = confusion_matrix(y_true, y_pred)
-    # plt.figure(figsize=(8, 6))
-    # sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=np.unique(y_true), yticklabels=np.unique(y_true))
-    # plt.xlabel('Predicted')
-    # plt.ylabel('True')
-    # plt.title('Confusion Matrix')
-    # plt.savefig('confusion_matrix.png')  # Save the plot as an image file
-    # plt.close()  # Close the plot to free up memory
+    save_data = {
+        "actions": action_history,
+        "H2": [to_serializable(h) for h in H2_history],
+        "Metano": [to_serializable(m) for m in Metano_history],
+        "MaxEnergy": [to_serializable(e) for e in MaxEnergy_history],
+        "GeneratedEnergy": [to_serializable(g) for g in GeneratedEnergy_history]
+    }
+    print(save_data)
+    with open("test_observations_actions.json", "w") as f:
+        json.dump(save_data, f, indent=2)
+
+    print("Testing completed:", sum(action_history))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train and test the Turbine environment using Stable Baselines3.")
