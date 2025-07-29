@@ -3,14 +3,14 @@ from gymnasium import spaces
 from gymnasium.envs.registration import register
 from gymnasium.utils.env_checker import check_env
 from simulator_modules.Operators import HighVariability, LowVariability, NORMAL
-from simulator_modules.Relations import LinkH2Metano, LinkSimilarBehavior, LinkLongReturn, LinkMaxEnergyFuel, LinkGeneratedEnergy
+from simulator_modules.Relations import LinkH2Metano, LinkMaxEnergyFuel, LinkGeneratedEnergy
 from simulator_modules.TurbineSimulator import Graph, plot_nodes_history, plot_sum_history
 import numpy as np
 import argparse
 
 register(
-    id='turbine-env-v0',
-    entry_point='v0_turbine_env:TurbineEnv', # module_name:class_name
+    id='turbine-env-v2',
+    entry_point='v2_turbine_env:TurbineEnv', # module_name:class_name
 )
 
 def create_nodes_and_relations(prob=0.0001):
@@ -139,7 +139,15 @@ class TurbineEnv(gym.Env):
 
         # Determine reward and termination
         generated_energy = self.history[3, -1]  # Last value of the GeneratedEnergy node
+        state = self.nodes[0].op.state.get_type()
+        # max_energy = self.history[2, -1]  # Last value of the MaxEnergy node
 
+        '''if generated_energy > self.upper_threshold and self.last_action == 0:
+            reward = self.reward_1
+        elif state != NORMAL and generated_energy < self.lower_threshold and self.last_action == 1:
+            reward = self.reward_2
+        else:
+            reward = self.reward_3'''
         if generated_energy > self.upper_threshold and self.last_action == 0:
             reward = self.reward_1
         elif generated_energy < self.upper_threshold and self.last_action == 1:
@@ -153,6 +161,7 @@ class TurbineEnv(gym.Env):
 
         # Additional info to return. For debugging or whatever.
         info = {
+            # "last_alert": self.last_action,
             "current_step": self.graph.current_step,
             "last_action": action,
             "reward": reward
@@ -162,13 +171,14 @@ class TurbineEnv(gym.Env):
         if(self.render_mode == 'human'):
             self.render()
 
-        # Return observation, reward, terminated, truncated, info
+        # Return observation, reward, terminated, truncated (not used), info
         return self.history, reward, terminated, truncated, info
 
     # Gym required function to render environment
     def render(self):
         if(self.render_mode == 'human'):
             print("Step: ", self.graph.current_step)
+            # print("Alert: ", self.graph.last_alert)
             print("Action: ", self.last_action)
             print("Values: ", {node.name: node.last_value for node in self.nodes})
             print("")
@@ -186,9 +196,6 @@ if __name__ == "__main__":
     parser.add_argument("--reward_2", type=float, default=-3, help="Reward for alert and action")
     parser.add_argument("--reward_3", type=float, default=0.001, help="Reward for no alert and no action")
     parser.add_argument("--reward_4", type=float, default=-0.2, help="Reward for no alert and action")
-    parser.add_argument("--lower_threshold", type=float, default=50, help="Lower threshold for the turbine's H2 level.")
-    parser.add_argument("--upper_threshold", type=float, default=70, help="Upper threshold for the turbine's H2 level.")
-
     args = parser.parse_args()
 
     env = gym.make(
@@ -200,8 +207,6 @@ if __name__ == "__main__":
         reward_2=args.reward_2,
         reward_3=args.reward_3,
         reward_4=args.reward_4
-        lower_threshold=args.lower_threshold,
-        upper_threshold=args.upper_threshold
     )
     print(env.observation_space)
     print(env.action_space)

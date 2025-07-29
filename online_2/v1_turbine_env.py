@@ -139,10 +139,11 @@ class TurbineEnv(gym.Env):
 
         # Determine reward and termination
         generated_energy = self.history[3, -1]  # Last value of the GeneratedEnergy node
+        state = self.nodes[0].op.state.get_type()
 
         if generated_energy > self.upper_threshold and self.last_action == 0:
             reward = self.reward_1
-        elif generated_energy < self.upper_threshold and self.last_action == 1:
+        elif state != NORMAL and generated_energy < self.lower_threshold and self.last_action == 1:
             reward = self.reward_2
         else:
             reward = self.reward_3
