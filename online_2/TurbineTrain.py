@@ -27,7 +27,7 @@ def get_unique_path(base_path):
 
 def get_latest_model_path(model_dir, model_type, env_version):
     base_name = f"{model_type.lower()}-{env_version}"
-    pattern = re.compile(rf"^{re.escape(base_name)}(\d*)$")
+    pattern = re.compile(rf"^{re.escape(base_name)}(\d+)?\.zip$")
     candidates = []
     for fname in os.listdir(model_dir):
         match = pattern.match(fname)
