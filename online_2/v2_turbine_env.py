@@ -206,7 +206,9 @@ if __name__ == "__main__":
         reward_1=args.reward_1,
         reward_2=args.reward_2,
         reward_3=args.reward_3,
-        reward_4=args.reward_4
+        reward_4=args.reward_4,
+        lower_threshold=args.lower_threshold,
+        upper_threshold=args.upper_threshold
     )
     print(env.observation_space)
     print(env.action_space)
