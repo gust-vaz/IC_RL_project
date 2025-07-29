@@ -9,8 +9,8 @@ import numpy as np
 import argparse
 
 register(
-    id='turbine-env-v0',
-    entry_point='v0_turbine_env:TurbineEnv', # module_name:class_name
+    id='turbine-env-v1',
+    entry_point='v1_turbine_env:TurbineEnv', # module_name:class_name
 )
 
 def create_nodes_and_relations(prob=0.0001):
@@ -194,7 +194,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     env = gym.make(
-        'turbine-env-v0',
+        'turbine-env-v1',
         seed=args.seed,
         render_mode=args.render_mode,
         history_length=args.history_length,

@@ -74,6 +74,8 @@ def train_sb3(env_args, timesteps=300000, env_version='v0', model_type='DQN'):
 
 def test_sb3(env_args, timesteps_test=100000, env_version='v0', model_type='DQN', model_path=None):
     model_dir = "models"
+    results_dir = "results"
+    os.makedirs(results_dir, exist_ok=True)
     env = gym.make('turbine-env-' + env_version, **env_args)
 
     # Load model
@@ -111,7 +113,7 @@ def test_sb3(env_args, timesteps_test=100000, env_version='v0', model_type='DQN'
         "MaxEnergy": [to_serializable(e) for e in MaxEnergy_history],
         "GeneratedEnergy": [to_serializable(g) for g in GeneratedEnergy_history]
     }
-    with open("test_observations_actions.json", "w") as f:
+    with open(f"{results_dir}/test_results_{model_type.lower()}_{env_version}.json", "w") as f:
         json.dump(save_data, f, indent=2)
 
     print("Testing completed:\n", "1's:", sum(action_history), "\n0's:", len(action_history) - sum(action_history))

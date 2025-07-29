@@ -200,7 +200,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     env = gym.make(
-        'turbine-env-v0',
+        'turbine-env-v2',
         seed=args.seed,
         render_mode=args.render_mode,
         history_length=args.history_length,
