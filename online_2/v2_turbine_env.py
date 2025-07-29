@@ -101,7 +101,8 @@ class TurbineEnv(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         # Reset the simulator. Optionally, pass in seed control randomness and reproduce scenarios.
-        self.seed += 1
+        if seed is not None:
+            self.seed = seed
         graph, nodes = create_graph(seed=self.seed)
         self.graph = graph
         self.nodes = nodes
