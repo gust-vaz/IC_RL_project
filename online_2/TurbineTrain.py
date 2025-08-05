@@ -93,6 +93,8 @@ def test_sb3(env_args, timesteps_test=100000, env_version='v0', model_type='DQN'
     Metano_history = []
     MaxEnergy_history = []
     GeneratedEnergy_history = []
+    lower_threshold_history = []
+    upper_threshold_history = []
     action_history = []
 
     # Run a test
@@ -107,6 +109,10 @@ def test_sb3(env_args, timesteps_test=100000, env_version='v0', model_type='DQN'
             Metano_history.extend(obs[1])
             MaxEnergy_history.extend(obs[2])
             GeneratedEnergy_history.extend(obs[3])
+            if len(obs) > 4:
+                lower_threshold_history.extend(obs[4])
+            if len(obs) > 5:
+                upper_threshold_history.extend(obs[5])
 
     save_data = {
         "actions": action_history,
@@ -115,6 +121,11 @@ def test_sb3(env_args, timesteps_test=100000, env_version='v0', model_type='DQN'
         "MaxEnergy": [to_serializable(e) for e in MaxEnergy_history],
         "GeneratedEnergy": [to_serializable(g) for g in GeneratedEnergy_history]
     }
+    if lower_threshold_history:
+        save_data["lower_threshold"] = [to_serializable(l) for l in lower_threshold_history]
+    if upper_threshold_history:
+        save_data["upper_threshold"] = [to_serializable(u) for u in upper_threshold_history]
+
     with open(f"{results_dir}/test_results_{model_type.lower()}_{env_version}.json", "w") as f:
         json.dump(save_data, f, indent=2)
 
