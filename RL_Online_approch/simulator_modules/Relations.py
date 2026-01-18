@@ -374,15 +374,16 @@ class LinkLongRecovery(Link):
         return y
 
 class LinkMaxEnergyFuel(Link):
-    def __init__(self, start_point: float,
-                 typical_bias_prob: float,
-                 typical_bias: float,
-                 theta_prob: float):
-        """ """
-        self.start_point = start_point
-        self.typical_bias_prob = typical_bias_prob
-        self.typical_bias = typical_bias
-        self.theta_prob = theta_prob
+    """
+    Link class for modeling maximum energy fuel behavior between parent and child nodes.
+    Attributes:
+        time (int): Internal time counter for tracking steps.
+    """
+
+    def __init__(self):
+        """
+        Initializes the LinkMaxEnergyFuel with parameters for energy fuel calculation.
+        """
 
         self.time = -1
 
@@ -408,11 +409,30 @@ class LinkMaxEnergyFuel(Link):
         return child.op.next_step()
 
 class LinkGeneratedEnergy(Link):
+    """
+    Link class for modeling generated energy behavior between parent and child nodes.
+
+    Attributes:
+        typical_bias_prob (float): Probability of applying a bias towards the typical value.
+        typical_bias (float): Bias factor towards the typical value.
+        theta_prob (float): Probability of applying a random variation.
+        theta_bias (float): Bias factor for the random variation.
+        alert_mode (bool): Flag indicating if the system is in alert mode.
+    """
+
     def __init__(self, typical_bias_prob: float,
                  typical_bias: float,
                  theta_prob: float,
                  theta_bias: float):
-        """ """
+        """
+        Initializes the LinkGeneratedEnergy with bias and variation parameters.
+
+        Parameters:
+            typical_bias_prob (float): Probability of applying a bias towards the typical value.
+            typical_bias (float): Bias factor towards the typical value.
+            theta_prob (float): Probability of applying a random variation.
+            theta_bias (float): Bias factor for the random variation.
+        """
         self.typical_bias_prob = typical_bias_prob
         self.typical_bias = typical_bias
         self.theta_prob = theta_prob
@@ -421,7 +441,6 @@ class LinkGeneratedEnergy(Link):
         self.alert_mode = False
     
     def calculate(self, parent, child, other_informations):
-        """ """
         if not self.alert_mode and other_informations is not None and 'alert' in other_informations and other_informations['alert'] == True:
             self.alert_mode = True
             child.op.set_new_trend()

@@ -31,8 +31,7 @@ def create_nodes_and_relations(prob=0.0001):
     relations = {
         "relation1": LinkH2Metano(limit_lower_bound=75, limit_upper_bound=100,
                                   typical_lower_bound=93, typical_upper_bound=98),
-        "relation2": LinkMaxEnergyFuel(start_point=0, typical_bias_prob=0.01, typical_bias=1,
-                                       theta_prob=0.01),
+        "relation2": LinkMaxEnergyFuel(),
         "relation3": LinkGeneratedEnergy(typical_bias_prob=0, typical_bias=0.2,
                                          theta_prob=0.7, theta_bias=0.8),
     }

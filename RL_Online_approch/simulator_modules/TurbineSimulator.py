@@ -1,5 +1,5 @@
 import random
-from typing import Dict, List
+from typing import List
 import matplotlib.pyplot as plt
 from .Operators import DEVIATION, RECOVERY
 from .Operators import StandardOperator
@@ -57,6 +57,7 @@ class Node:
         Parameters:
             child (Node): The child node.
             strategy (Link): The strategy defining the relationship between the nodes.
+            other_influences (list[Node], optional): Other nodes influencing the child node. Defaults to None.
         """
         edge = Edge(self, child, strategy=strategy)
         self.edges.append(edge)
@@ -69,6 +70,7 @@ class Node:
 
         Parameters:
             debug (bool, optional): Whether to store the generated values in the stack for debugging.
+            other_informations (optional): Additional information for simulation, like alerts.
         """
         if self.root is None:
             self.last_value = self.op.next_step()
@@ -136,6 +138,7 @@ class Edge:
 
         Parameters:
             debug (bool, optional): Whether to store the generated values in the child's stack for debugging.
+            other_informations (optional): Additional information for simulation, like alerts.
         """
         if self.child.other_influences is not None:
             influences = (self.child.other_influences or []) + [self.root]
@@ -214,6 +217,7 @@ class Graph:
 
         Parameters:
             steps (int): The number of steps to simulate.
+            other_informations (optional): Additional information for simulation, like alerts.
         """
         for _ in range(steps):
             self.current_step += 1
@@ -305,62 +309,6 @@ def plot_nodes_history(nodes: list[Node], range: tuple = None, constants: list[i
     plt.ylabel("Values")
     plt.legend()
     plt.show()
-
-
-# def plot_nodes_history(nodes: list[Node], step_range: tuple = None, constants: list[int] = None, constant_names: list[str] = None) -> None:
-#     """
-#     Plots the history of values for a list of nodes.
-
-#     Parameters:
-#         nodes (list[Node]): The nodes to plot.
-#         step_range (tuple, optional): The range of steps to plot. Defaults to None.
-#         constants (list[int], optional): List of constant values to plot. Defaults to None.
-#         constant_names (list[str], optional): List of names for the constants. Defaults to None.
-#     """
-#     plt.figure(figsize=(10, 5))
-#     title = ""
-#     for idx, node in enumerate(nodes):
-#         if step_range:
-#             start, end = step_range
-#             y = node.stack[start:end]
-#             x = list(range(start, end))
-#             plt.plot(x, y, label=node.name)
-#         else:
-#             y = node.stack
-#             x = list(range(len(y)))
-#             plt.plot(x, y, label=node.name)
-#         title += f"{node.name}, "
-#         # Add black 'x' markers at specified steps for node[1] with legend label 'Alerts' for the first marker
-#         if idx == 1:
-#             mark_steps = [6500, 7000, 7500, 8000, 8500]
-#             alert_label_added = False
-#             for step in mark_steps:
-#                 label = "Alerts" if not alert_label_added else None
-#                 if step_range:
-#                     if start <= step < end and (step - start) < len(y):
-#                         plt.plot(step, y[step - start], 'x', color='black', markersize=4, markeredgewidth=2, label=label)
-#                         alert_label_added = True
-#                 else:
-#                     if step < len(y):
-#                         plt.plot(step, y[step], 'x', color='black', markersize=4, markeredgewidth=2, label=label)
-#                         alert_label_added = True
-#     # Plot constants if provided
-#     if constants is not None:
-#         if step_range:
-#             start, end = step_range
-#             steps = end - start
-#             x = list(range(start, end))
-#         else:
-#             steps = len(nodes[0].stack) if nodes else 0
-#             x = list(range(steps))
-#         for idx, const in enumerate(constants):
-#             label = f"Constant {idx+1}" if constant_names is None else constant_names[idx]
-#             plt.plot(x, [const] * len(x), label=label, linestyle="--")
-#     plt.title(f"Value Stack History: {title.strip(', ')}")
-#     plt.xlabel("Steps")
-#     plt.ylabel("Values")
-#     plt.legend()
-#     plt.show()
 
 
 def plot_sum_history(node_a: Node, node_b: Node) -> None:
