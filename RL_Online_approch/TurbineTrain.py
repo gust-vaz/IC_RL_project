@@ -7,6 +7,7 @@ import v0_turbine_env
 import v1_turbine_env 
 import v2_turbine_env 
 import gymnasium as gym
+from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3 import A2C, DQN, PPO
 
 def to_serializable(val):
@@ -22,7 +23,7 @@ def get_unique_path(base_path):
     base, ext = os.path.splitext(base_path)
     i = 1
     while True:
-        new_path = f"{base}{i}{ext}"
+        new_path = f"{base}-{i}{ext}"
         if not os.path.exists(new_path):
             return new_path
         i += 1
@@ -45,21 +46,27 @@ def get_latest_model_path(model_dir, model_type, env_version):
 
 def train_sb3(env_args, timesteps=300000, env_version='v0', model_type='DQN'):
     parameters_dir = "parameters"
-    model_dir = "models"
+    best_models_dir = "best_models"
+    model_dir = "saved_models"
     log_dir = "logs"
+    tensorboard_log_dir = "./tensorboard_logs/"
     os.makedirs(parameters_dir, exist_ok=True)
     os.makedirs(model_dir, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
+    os.makedirs(tensorboard_log_dir, exist_ok=True)
 
     env = gym.make('turbine-env-' + env_version, **env_args)
+    eval_callback = EvalCallback(env, best_model_save_path=best_models_dir,
+                             log_path=best_models_dir, eval_freq=5000,
+                             deterministic=True, render=False)
 
     model_class = {"A2C": A2C, "DQN": DQN, "PPO": PPO}[model_type]
     # Use MlpPolicy for observation space 1D vector.
-    model = model_class('MlpPolicy', env, verbose=1, device='cuda', tensorboard_log=log_dir)
-    model.learn(total_timesteps=timesteps, reset_num_timesteps=False)
+    model = model_class('MlpPolicy', env, verbose=1, device='cuda', tensorboard_log=tensorboard_log_dir)
+    model.learn(total_timesteps=timesteps, reset_num_timesteps=False, callback=eval_callback)
 
     # Save the model and parameters
-    model_path = get_unique_path(f"{model_dir}/{model_type.lower()}-{env_version}")
+    model_path = get_unique_path(f"{model_dir}/{model_type.lower()}-{env_version}.zip")
     param_path = get_unique_path(f"{parameters_dir}/params_{model_type.lower()}_{env_version}.json")
 
     model.save(model_path)

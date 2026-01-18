@@ -1,7 +1,7 @@
 import random
 from typing import Dict, List
 import matplotlib.pyplot as plt
-from .Operators import EXCEEDING, RETURNING
+from .Operators import DEVIATION, RECOVERY
 from .Operators import StandardOperator
 from .Relations import Link
 
@@ -178,7 +178,7 @@ class Graph:
         self.current_step = 0
         self.n_unstable_steps = n_unstable_steps
         self.count = 0
-        self.is_exceeding_step = []
+        self.is_deviation_step = []
         self.last_alert = None
         self.alert_period = []
         self.debug = debug
@@ -223,7 +223,7 @@ class Graph:
                     current_state = node.op.state.get_type()
 
                     # Generate alert period logic
-                    if current_state in (EXCEEDING, RETURNING):
+                    if current_state in (DEVIATION, RECOVERY):
                         self.count = self.n_unstable_steps
                         self.last_alert = True
                         if self.debug:
@@ -273,7 +273,7 @@ class Graph:
         plt.show()
 
 
-def plot_nodes_history(nodes: list[Node], range: tuple = None, constants: list[int] = None) -> None:
+def plot_nodes_history(nodes: list[Node], range: tuple = None, constants: list[int] = None, constant_names: list[str] = None) -> None:
     """
     Plots the history of values for a list of nodes.
 
@@ -298,12 +298,70 @@ def plot_nodes_history(nodes: list[Node], range: tuple = None, constants: list[i
         else:
             steps = len(nodes[0].stack) if nodes else 0
         for idx, const in enumerate(constants):
-            plt.plot([const] * steps, label=f"Constant {idx+1}", linestyle="--")
+            label = f"Constant {idx+1}" if constant_names is None else constant_names[idx]
+            plt.plot([const] * steps, label=label, linestyle="--")
     plt.title(f"Value Stack History: {title.strip(', ')}")
     plt.xlabel("Steps")
     plt.ylabel("Values")
     plt.legend()
     plt.show()
+
+
+# def plot_nodes_history(nodes: list[Node], step_range: tuple = None, constants: list[int] = None, constant_names: list[str] = None) -> None:
+#     """
+#     Plots the history of values for a list of nodes.
+
+#     Parameters:
+#         nodes (list[Node]): The nodes to plot.
+#         step_range (tuple, optional): The range of steps to plot. Defaults to None.
+#         constants (list[int], optional): List of constant values to plot. Defaults to None.
+#         constant_names (list[str], optional): List of names for the constants. Defaults to None.
+#     """
+#     plt.figure(figsize=(10, 5))
+#     title = ""
+#     for idx, node in enumerate(nodes):
+#         if step_range:
+#             start, end = step_range
+#             y = node.stack[start:end]
+#             x = list(range(start, end))
+#             plt.plot(x, y, label=node.name)
+#         else:
+#             y = node.stack
+#             x = list(range(len(y)))
+#             plt.plot(x, y, label=node.name)
+#         title += f"{node.name}, "
+#         # Add black 'x' markers at specified steps for node[1] with legend label 'Alerts' for the first marker
+#         if idx == 1:
+#             mark_steps = [6500, 7000, 7500, 8000, 8500]
+#             alert_label_added = False
+#             for step in mark_steps:
+#                 label = "Alerts" if not alert_label_added else None
+#                 if step_range:
+#                     if start <= step < end and (step - start) < len(y):
+#                         plt.plot(step, y[step - start], 'x', color='black', markersize=4, markeredgewidth=2, label=label)
+#                         alert_label_added = True
+#                 else:
+#                     if step < len(y):
+#                         plt.plot(step, y[step], 'x', color='black', markersize=4, markeredgewidth=2, label=label)
+#                         alert_label_added = True
+#     # Plot constants if provided
+#     if constants is not None:
+#         if step_range:
+#             start, end = step_range
+#             steps = end - start
+#             x = list(range(start, end))
+#         else:
+#             steps = len(nodes[0].stack) if nodes else 0
+#             x = list(range(steps))
+#         for idx, const in enumerate(constants):
+#             label = f"Constant {idx+1}" if constant_names is None else constant_names[idx]
+#             plt.plot(x, [const] * len(x), label=label, linestyle="--")
+#     plt.title(f"Value Stack History: {title.strip(', ')}")
+#     plt.xlabel("Steps")
+#     plt.ylabel("Values")
+#     plt.legend()
+#     plt.show()
+
 
 def plot_sum_history(node_a: Node, node_b: Node) -> None:
     """

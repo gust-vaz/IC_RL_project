@@ -2,25 +2,25 @@ import gymnasium as gym
 from gymnasium import spaces
 from gymnasium.envs.registration import register
 from gymnasium.utils.env_checker import check_env
-from simulator_modules.Operators import HighVariability, LowVariability, NORMAL
-from simulator_modules.Relations import LinkH2Metano, LinkSimilarBehavior, LinkLongReturn, LinkMaxEnergyFuel, LinkGeneratedEnergy
+from simulator_modules.Operators import HighVariability, LowVariability
+from simulator_modules.Relations import LinkH2Metano, LinkMaxEnergyFuel, LinkGeneratedEnergy
 from simulator_modules.TurbineSimulator import Graph, plot_nodes_history, plot_sum_history
 import numpy as np
 import argparse
 
 register(
-    id='turbine-env-v0',
-    entry_point='v0_turbine_env:TurbineEnv', # module_name:class_name
+    id='turbine-env-v2',
+    entry_point='v2_turbine_env:TurbineEnv', # module_name:class_name
 )
 
 def create_nodes_and_relations(prob=0.0001):
     # Create nodes
     H2 = HighVariability(lower_bound=30, upper_bound=70, typical_value=57.5, name="H2",
                          typical_bias=0.1, typical_bias_prob=0.1, theta=1.5, theta_prob=0.1,
-                         exceed_prob=prob, exceed_duration_range=(180, 300),
-                         return_duration_range=(180, 300), exceed_bias_range=(-5, 5),
-                         exceed_bias_prob=0.05, exceed_peak_value_range=(0, 5),
-                         hold_duration_range=(1500, 2000), hold_prob_vary=0.05, hold_variation=1)
+                         deviate_prob=prob, deviate_duration_range=(180, 300),
+                         recover_duration_range=(180, 300), deviate_bias_range=(-5, 5),
+                         deviate_bias_prob=0.05, deviate_peak_value_range=(0, 5),
+                         plat_duration_range=(1500, 2000), plat_prob_vary=0.05, plat_variation=1)
     Metano = HighVariability(lower_bound=30, upper_bound=70, typical_value=40, name="Metano",
                              typical_bias=0.1, typical_bias_prob=0.1, theta=1.5, theta_prob=0.1)
     MaxEnergy = LowVariability(lower_bound=0, upper_bound=100, typical_value=20, name="MaxEnergy",
@@ -59,7 +59,7 @@ class TurbineEnv(gym.Env):
     def __init__(self, seed=None, render_mode=None, history_length=20,
                  reward_1=-20, reward_2=-3,
                  reward_3=0.001, reward_4=-0.2,
-                 lower_threshold=50, upper_threshold=70, steps=100000):
+                 lower_threshold=50, upper_threshold=70, steps=50000):
         self.render_mode = render_mode
         self.history_length = history_length
         self.lower_threshold = lower_threshold
@@ -78,8 +78,8 @@ class TurbineEnv(gym.Env):
         self.nodes = nodes
         self.n_steps = steps # Number of steps to simulate
 
-        # Initialize history buffer for each node
-        self.history = np.zeros((len(self.nodes), self.history_length), dtype=np.float32)
+        # Initialize history buffer for each node + thresholds
+        self.history = np.zeros((len(self.nodes) + 2, self.history_length), dtype=np.float32)
 
         # Gym requires defining the action space. The action space is 0 or 1.
         # 0: do nothing, 1: perform action.
@@ -87,35 +87,42 @@ class TurbineEnv(gym.Env):
         self.action_space = spaces.Discrete(2)
         self.last_action = None
 
-        # Gym requires defining the observation space. The observation space consists of the current operators' values.
-        # The observation space is used to validate the observation returned by reset() and step().
-        # Use a 1D vector: [node1.last_value, node2.last_value, ..., node12.last_value]
+        # Gym requires defining the observation space. The observation space consists of the current operators' values + thresholds.
+        # Use a 1D vector: [node1.last_value, node2.last_value, ..., nodeN.last_value, lower_threshold, upper_threshold]
         self.observation_space = spaces.Box(
             low=0,
             high=100,
-            shape=(len(self.nodes), self.history_length),
+            shape=(len(self.nodes) + 2, self.history_length),
             dtype=np.float32
         )
 
     # Gym required function (and parameters) to reset the environment
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        # Reset the simulator. Optionally, pass in seed control randomness and reproduce scenarios.
+        # Ensure deterministic randomization if seed is provided
         if seed is not None:
             self.seed = seed
+            np.random.seed(self.seed)
+        # Randomize thresholds at each reset
+        self.lower_threshold = np.random.uniform(36, 80)
+        self.upper_threshold = np.random.uniform(self.lower_threshold + 1, 99)
+
+        # Reset the simulator. Optionally, pass in seed control randomness and reproduce scenarios.
         graph, nodes = create_graph(seed=self.seed)
         self.graph = graph
         self.nodes = nodes
 
         # Reset history buffer
-        self.history = np.zeros((len(self.nodes), self.history_length), dtype=np.float32)
+        self.history = np.zeros((len(self.nodes) + 2, self.history_length), dtype=np.float32)
 
         # Simulate initial steps to populate history
         for _ in range(self.history_length):
             self.graph.simulate(steps=1)
             current_values = np.array([node.last_value for node in self.nodes], dtype=np.float32)
             self.history = np.roll(self.history, shift=-1, axis=1)
-            self.history[:, -1] = current_values
+            self.history[:len(self.nodes), -1] = current_values
+            self.history[len(self.nodes), -1] = self.lower_threshold
+            self.history[len(self.nodes)+1, -1] = self.upper_threshold
 
         # Additional info to return. For debugging or whatever.
         info = {}
@@ -136,17 +143,23 @@ class TurbineEnv(gym.Env):
         self.graph.simulate(steps=1, other_informations=other_information)
         current_values = np.array([node.last_value for node in self.nodes], dtype=np.float32)
         self.history = np.roll(self.history, shift=-1, axis=1)
-        self.history[:, -1] = current_values
+        self.history[:len(self.nodes), -1] = current_values
+        self.history[len(self.nodes), -1] = self.lower_threshold
+        self.history[len(self.nodes)+1, -1] = self.upper_threshold
 
         # Determine reward and termination
         generated_energy = self.history[3, -1]  # Last value of the GeneratedEnergy node
+        state = self.nodes[0].op.state.get_type()
+        # max_energy = self.history[2, -1]  # Last value of the MaxEnergy node
 
         if generated_energy > self.upper_threshold and self.last_action == 0:
             reward = self.reward_1
+        elif generated_energy < self.lower_threshold and self.last_action == 1:
+            reward = self.reward_3
         elif generated_energy < self.upper_threshold and self.last_action == 1:
             reward = self.reward_2
         else:
-            reward = self.reward_3
+            reward = self.reward_4
 
         # Determine if the episode is terminated or truncated
         terminated = False
@@ -154,6 +167,7 @@ class TurbineEnv(gym.Env):
 
         # Additional info to return. For debugging or whatever.
         info = {
+            # "last_alert": self.last_action,
             "current_step": self.graph.current_step,
             "last_action": action,
             "reward": reward
@@ -163,13 +177,14 @@ class TurbineEnv(gym.Env):
         if(self.render_mode == 'human'):
             self.render()
 
-        # Return observation, reward, terminated, truncated, info
+        # Return observation, reward, terminated, truncated (not used), info
         return self.history, reward, terminated, truncated, info
 
     # Gym required function to render environment
     def render(self):
         if(self.render_mode == 'human'):
             print("Step: ", self.graph.current_step)
+            # print("Alert: ", self.graph.last_alert)
             print("Action: ", self.last_action)
             print("Values: ", {node.name: node.last_value for node in self.nodes})
             print("")
@@ -189,11 +204,10 @@ if __name__ == "__main__":
     parser.add_argument("--reward_4", type=float, default=-0.2, help="Reward for no alert and action")
     parser.add_argument("--lower_threshold", type=float, default=50, help="Lower threshold for the turbine's H2 level.")
     parser.add_argument("--upper_threshold", type=float, default=70, help="Upper threshold for the turbine's H2 level.")
-
     args = parser.parse_args()
 
     env = gym.make(
-        'turbine-env-v0',
+        'turbine-env-v2',
         seed=args.seed,
         render_mode=args.render_mode,
         history_length=args.history_length,

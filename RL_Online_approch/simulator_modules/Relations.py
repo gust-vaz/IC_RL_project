@@ -1,13 +1,12 @@
 from abc import ABC, abstractmethod
 from math import sin, cos, log
-# from TurbineSimulator import Node
 import random
 
 # Constants for state machine
-NORMAL    = 0
-EXCEEDING = 1
-HOLDING   = 2
-RETURNING = 3
+BASELINE  = 0
+DEVIATION = 1
+PLATEAU   = 2
+RECOVERY  = 3
 
 class Link(ABC):
     """
@@ -63,7 +62,7 @@ class LinkH2Metano(Link):
         # Synchronize the child's state with the parent's state
         child.op.state = parent.op.state
         
-        if parent.op.state.get_type() == NORMAL:
+        if parent.op.state.get_type() == BASELINE:
             # Calculate the range for child based on the constraints
             min_child = max(self.limit_lower_bound - base_value, child.op.lower_bound)
             max_child = min(self.limit_upper_bound - base_value, child.op.upper_bound)
@@ -76,7 +75,7 @@ class LinkH2Metano(Link):
             new_value = self._generate_next_value(child, min_child, max_child, typical_child)
 
         else:
-            # Handle non-normal states
+            # Handle non-baseline states
             min_child = max(self.limit_lower_bound - base_value, 0)
             max_child = min(self.limit_upper_bound - base_value, 100)
 
@@ -135,14 +134,14 @@ class LinkSimilarBehavior(Link):
         typical_bias (float): Bias factor towards the typical value.
         theta_prob (float): Probability of applying a random variation.
         amplifier (float): Amplifies the correlation effect.
-        holding_range (tuple, optional): Range of steps for holding behavior.
+        plateau_range (tuple, optional): Range of steps for plateau behavior.
     """
     def __init__(self, correlation: float,
                 typical_bias_prob: float, 
                 typical_bias: float,
                 theta_prob: float,
                 amplifier: float = 1.0,
-                holding_range: tuple = None):
+                plateau_range: tuple = None):
         """
         Initializes the LinkSimilarBehavior with correlation and bias parameters.
 
@@ -152,14 +151,14 @@ class LinkSimilarBehavior(Link):
             typical_bias (float): Bias factor towards the typical value.
             theta_prob (float): Probability of applying a random variation.
             amplifier (float): Amplifies the correlation effect.
-            holding_range (tuple, optional): Range of steps for holding behavior.
+            plateau_range (tuple, optional): Range of steps for plateau behavior.
         """
         self.correlation = correlation
         self.typical_bias_prob = typical_bias_prob
         self.typical_bias = typical_bias
         self.theta_prob = theta_prob
         self.amplifier = amplifier
-        self.holding_range = holding_range
+        self.plateau_range = plateau_range
 
     def calculate(self, parent, child) -> float:
         if child.op.current_value is not None and child.op.total_steps == child.op.steps_counter:
@@ -167,8 +166,8 @@ class LinkSimilarBehavior(Link):
             child.op.state = parent.op.state
 
             # Set a new trend for the child based on the parent's state
-            if parent.op.state.get_type() != NORMAL:
-                child.op.set_new_trend(range=self.holding_range)
+            if parent.op.state.get_type() != BASELINE:
+                child.op.set_new_trend(range=self.plateau_range)
             else:
                 child.op.set_new_trend()
 
@@ -178,13 +177,13 @@ class LinkSimilarBehavior(Link):
             percentage_variation = variation / parent.op.typical_value
 
             # Calculate the child's end value based on the parent's variation
-            if parent.op.state.get_type() != NORMAL:
+            if parent.op.state.get_type() != BASELINE:
                 child.op.end_value = child.op.typical_value * (1 + percentage_variation * self.correlation * self.amplifier)
             else:
                 child.op.end_value = child.op.typical_value * (1 + percentage_variation * self.correlation)
 
             # Bias of the operator itself weighted by correlation
-            if random.random() < self.typical_bias_prob and not parent.op.state.get_type() == NORMAL:
+            if random.random() < self.typical_bias_prob and not parent.op.state.get_type() == BASELINE:
                 child.op.end_value += (child.op.typical_value - child.op.end_value) * self.typical_bias
 
             # Apply random variation
@@ -197,9 +196,9 @@ class LinkSimilarBehavior(Link):
         # Advance the child's operator to the next step
         return child.op.next_step()
 
-class LinkLongReturn(Link):
+class LinkLongRecovery(Link):
     """
-    Link class for modeling long return behavior between parent and child nodes.
+    Link class for modeling long recovery behavior between parent and child nodes.
 
     Attributes:
         correlation (float): Correlation factor between the parent and child nodes.
@@ -207,10 +206,10 @@ class LinkLongReturn(Link):
         typical_bias (float): Bias factor towards the typical value.
         theta_prob (float): Probability of applying a random variation.
         amplifier (float): Amplifies the correlation effect.
-        holding_range (tuple): Range of steps for holding behavior.
-        back_range (tuple): Range of steps for returning behavior.
+        plateau_range (tuple): Range of steps for plateau behavior.
+        back_range (tuple): Range of steps for recovery behavior.
         back_typical_prob (float): Probability of returning to the typical value.
-        back_typical_range (tuple): Range of typical values for returning behavior.
+        back_typical_range (tuple): Range of typical values for recovery behavior.
         back_cos_prob (float): Probability of applying a cosine variation.
         back_sin_prob (float): Probability of applying a sine variation.
         trigonometric_function_coef (float): Coefficient for trigonometric variations.
@@ -220,7 +219,7 @@ class LinkLongReturn(Link):
                 typical_bias: float,
                 theta_prob: float,
                 amplifier: float,
-                holding_range: tuple,
+                plateau_range: tuple,
                 back_range: tuple = (0, 30),
                 back_typical_prob: float = 0.7,
                 back_typical_range: tuple = (-10, 10),
@@ -228,7 +227,7 @@ class LinkLongReturn(Link):
                 back_sin_prob: float = 0.1,
                 trigonometric_function_coef: float = 0.01):
         """
-        Initializes the LinkLongReturn with correlation and return behavior parameters.
+        Initializes the LinkLongRecovery with correlation and recovery behavior parameters.
 
         Parameters:
             correlation (float): Correlation factor between the parent and child nodes.
@@ -236,10 +235,10 @@ class LinkLongReturn(Link):
             typical_bias (float): Bias factor towards the typical value.
             theta_prob (float): Probability of applying a random variation.
             amplifier (float): Amplifies the correlation effect.
-            holding_range (tuple): Range of steps for holding behavior.
-            back_range (tuple): Range of steps for returning behavior.
+            plateau_range (tuple): Range of steps for plateau behavior.
+            back_range (tuple): Range of steps for recovery behavior.
             back_typical_prob (float): Probability of returning to the typical value.
-            back_typical_range (tuple): Range of typical values for returning behavior.
+            back_typical_range (tuple): Range of typical values for recovery behavior.
             back_cos_prob (float): Probability of applying a cosine variation.
             back_sin_prob (float): Probability of applying a sine variation.
             trigonometric_function_coef (float): Coefficient for trigonometric variations.
@@ -249,7 +248,7 @@ class LinkLongReturn(Link):
         self.typical_bias = typical_bias
         self.theta_prob = theta_prob
         self.amplifier = amplifier
-        self.holding_range = holding_range
+        self.plateau_range = plateau_range
 
         # Back parameters
         self.back_range = back_range
@@ -259,30 +258,30 @@ class LinkLongReturn(Link):
         self.back_sin_prob = back_sin_prob
         self.trigonometric_function_coef = trigonometric_function_coef
 
-        # State variables for return behavior
+        # State variables for recovery behavior
         self.to_back = False
         self.back_end = None
         self.current_back = 0
 
     def calculate(self, parent, child) -> float:
         self.current_back += 1
-        if parent.op.state.get_type() == RETURNING:
+        if parent.op.state.get_type() == RECOVERY:
             self.to_back = True
 
         if child.op.current_value is not None and child.op.total_steps == child.op.steps_counter:
             if self.to_back:
-                self._handle_returning_behavior(parent, child)
+                self._handle_recovering_behavior(parent, child)
             else:
-                self._handle_normal_behavior(parent, child)
+                self._handle_baseline_behavior(parent, child)
             
             # Ensure the child's end value is within bounds
             child.op.end_value = max(0, min(child.op.end_value, 100))
 
         return child.op.next_step()
     
-    def _handle_returning_behavior(self, parent, child) -> None:
+    def _handle_recovering_behavior(self, parent, child) -> None:
         """
-        Handles the behavior when the child is returning to its typical value.
+        Handles the behavior when the child is recovering to its typical value.
 
         Parameters:
             parent (Node): The parent node.
@@ -294,12 +293,12 @@ class LinkLongReturn(Link):
             self.current_back = 0
 
         # Back until around the typical value
-        if parent.op.state.get_type() == NORMAL or parent.op.state.get_type() == RETURNING:
+        if parent.op.state.get_type() == BASELINE or parent.op.state.get_type() == RECOVERY:
             child.op.state = parent.op.state
             child.op.set_new_trend()
 
             child.op.start_value = child.op.current_value
-            child.op.end_value = self._calculate_return_value(
+            child.op.end_value = self._calculate_recover_value(
                     x0=0,
                     y0=0,
                     x1=self.back_end,
@@ -311,9 +310,9 @@ class LinkLongReturn(Link):
                 self.to_back = False
                 self.back_end = None
 
-    def _handle_normal_behavior(self, parent, child) -> None:
+    def _handle_baseline_behavior(self, parent, child) -> None:
         """
-        Handles the normal behavior when the child is not returning.
+        Handles the baseline behavior when the child is not recovering.
 
         Parameters:
             parent (Node): The parent node.
@@ -322,8 +321,8 @@ class LinkLongReturn(Link):
         child.op.state = parent.op.state
 
         # Set a new trend for the child based on the parent's state
-        if parent.op.state.get_type() != NORMAL:
-            child.op.set_new_trend(range=self.holding_range)
+        if parent.op.state.get_type() != BASELINE:
+            child.op.set_new_trend(range=self.plateau_range)
         else:
             child.op.set_new_trend()
 
@@ -333,7 +332,7 @@ class LinkLongReturn(Link):
         percentage_variation = variation / parent.op.typical_value
         
         # Calculate the child's end value based on the parent's variation
-        if parent.op.state.get_type() != NORMAL:
+        if parent.op.state.get_type() != BASELINE:
             child.op.end_value = child.op.typical_value * (1 + percentage_variation * self.correlation * self.amplifier)
         else:
             child.op.end_value = child.op.typical_value * (1 + percentage_variation * self.correlation)
@@ -346,7 +345,7 @@ class LinkLongReturn(Link):
         if random.random() < self.theta_prob:
             child.op.end_value += random.uniform(-1, 1) * child.op.theta
 
-    def _calculate_return_value(self, x0: int, y0: float, x1: int, y1: float, step: int) -> float:
+    def _calculate_recover_value(self, x0: int, y0: float, x1: int, y1: float, step: int) -> float:
         """
         Calculates a value that ascends or descends linearly applying a bias and noise.
 
@@ -390,7 +389,7 @@ class LinkMaxEnergyFuel(Link):
     def calculate(self, parents, child):
         self.time += 1
         if child.op.current_value is not None and child.op.total_steps == child.op.steps_counter:
-            if parents[1].op.state.get_type() == RETURNING:
+            if parents[1].op.state.get_type() == RECOVERY:
                 self.time = min(1000, self.time)
             # Set a new trend for the child
             child.op.set_new_trend()
@@ -400,9 +399,6 @@ class LinkMaxEnergyFuel(Link):
 
             # Define end value
             end_time = self.time + child.op.total_steps
-            # child.op.end_value = 80 * log((end_time + 20) / 15, 20)
-            # child.op.end_value = parents[1].op.current_value * log((end_time + 20) / 15, 20)
-            # child.op.end_value = parents[0].op.current_value * log((end_time + 20) / 15, 20)
             child.op.end_value = 0.9 * (0.5 * parents[0].op.current_value + 0.3 * parents[1].op.current_value) * log((end_time + 20) / 15, 20)
             child.op.end_value = max(0, min(child.op.end_value, 100))
         
