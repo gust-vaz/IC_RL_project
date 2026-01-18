@@ -4,7 +4,7 @@ from gymnasium.envs.registration import register
 from gymnasium.utils.env_checker import check_env
 from simulator_modules.Operators import HighVariability, LowVariability
 from simulator_modules.Relations import LinkH2Metano, LinkMaxEnergyFuel, LinkGeneratedEnergy
-from simulator_modules.TurbineSimulator import Graph, plot_nodes_history, plot_sum_history
+from simulator_modules.TurbineSimulator import Graph
 import numpy as np
 import argparse
 
@@ -82,11 +82,9 @@ class TurbineEnv(gym.Env):
 
         # Gym requires defining the action space. The action space is 0 or 1.
         # 0: do nothing, 1: perform action.
-        # Training code can call action_space.sample() to randomly select an action.
         self.action_space = spaces.Discrete(2)
         self.last_action = None
 
-        # Gym requires defining the observation space. The observation space consists of the current operators' values + thresholds.
         # Use a 1D vector: [node1.last_value, node2.last_value, ..., nodeN.last_value, lower_threshold, upper_threshold]
         self.observation_space = spaces.Box(
             low=0,
@@ -95,13 +93,12 @@ class TurbineEnv(gym.Env):
             dtype=np.float32
         )
 
-    # Gym required function (and parameters) to reset the environment
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        # Ensure deterministic randomization if seed is provided
         if seed is not None:
             self.seed = seed
             np.random.seed(self.seed)
+            
         # Randomize thresholds at each reset
         self.lower_threshold = np.random.uniform(36, 80)
         self.upper_threshold = np.random.uniform(self.lower_threshold + 1, 99)
@@ -133,7 +130,6 @@ class TurbineEnv(gym.Env):
         # Return observation and info
         return self.history, info
 
-    # Gym required function (and parameters) to perform an action
     def step(self, action):
         self.last_action = action
         other_information = {'alert': action == 1}
@@ -148,9 +144,6 @@ class TurbineEnv(gym.Env):
 
         # Determine reward and termination
         generated_energy = self.history[3, -1]  # Last value of the GeneratedEnergy node
-        state = self.nodes[0].op.state.get_type()
-        # max_energy = self.history[2, -1]  # Last value of the MaxEnergy node
-
         if generated_energy > self.upper_threshold and self.last_action == 0:
             reward = self.reward_1
         elif generated_energy < self.lower_threshold and self.last_action == 1:
@@ -160,13 +153,12 @@ class TurbineEnv(gym.Env):
         else:
             reward = self.reward_4
 
-        # Determine if the episode is terminated or truncated
+        # Determine if the episode is truncated
         terminated = False
         truncated = self.n_steps <= self.graph.current_step
 
         # Additional info to return. For debugging or whatever.
         info = {
-            # "last_alert": self.last_action,
             "current_step": self.graph.current_step,
             "last_action": action,
             "reward": reward
@@ -176,14 +168,11 @@ class TurbineEnv(gym.Env):
         if(self.render_mode == 'human'):
             self.render()
 
-        # Return observation, reward, terminated, truncated (not used), info
         return self.history, reward, terminated, truncated, info
 
-    # Gym required function to render environment
     def render(self):
         if(self.render_mode == 'human'):
             print("Step: ", self.graph.current_step)
-            # print("Alert: ", self.graph.last_alert)
             print("Action: ", self.last_action)
             print("Values: ", {node.name: node.last_value for node in self.nodes})
             print("")
@@ -220,7 +209,7 @@ if __name__ == "__main__":
     print(env.observation_space)
     print(env.action_space)
 
-    # Use this to check our custom environment
+    # Check our custom environment
     print("Check environment begin")
     check_env(env.unwrapped)
     print("Check environment end")
