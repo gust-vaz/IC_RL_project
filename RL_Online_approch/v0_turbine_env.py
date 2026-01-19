@@ -64,6 +64,7 @@ class TurbineEnv(gym.Env):
         self.lower_threshold = lower_threshold
         self.upper_threshold = upper_threshold
         self.seed = seed
+        self.rng = np.random.default_rng(seed)
 
         # Reward parameters
         self.reward_1 = reward_1
@@ -95,11 +96,13 @@ class TurbineEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        if seed is not None:
-            self.seed = seed
+        if self.seed is not None:
+            seed = self.seed
+        else:
+            seed = int(self.rng.integers(0, 2**32 - 1))
 
         # Reset the simulator. Optionally, pass in seed control randomness and reproduce scenarios.
-        graph, nodes = create_graph(seed=self.seed)
+        graph, nodes = create_graph(seed=seed)
         self.graph = graph
         self.nodes = nodes
 
@@ -173,6 +176,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Turbine Environment Simulation")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for the environment")
     parser.add_argument("--simulate", action="store_true", help="Run the environment simulation")
+    parser.add_argument("--simulate_steps", type=int, default=100, help="Number of steps to run the environment simulation")
     parser.add_argument("--render_mode", type=str, default="human", help="Render mode for the environment")
     parser.add_argument("--history_length", type=int, default=20, help="Length of the history buffer")
     parser.add_argument("--reward_1", type=float, default=-20, help="Reward for alert and no action")
@@ -181,7 +185,6 @@ if __name__ == "__main__":
     parser.add_argument("--reward_4", type=float, default=-0.2, help="Reward for no alert and action")
     parser.add_argument("--lower_threshold", type=float, default=50, help="Lower threshold for the turbine's H2 level.")
     parser.add_argument("--upper_threshold", type=float, default=70, help="Upper threshold for the turbine's H2 level.")
-
     args = parser.parse_args()
 
     env = gym.make(
@@ -203,14 +206,28 @@ if __name__ == "__main__":
     print("Check environment begin")
     check_env(env.unwrapped)
     print("Check environment end")
+    env.close()
 
     if args.simulate:
         print("\nSTARTING RANDOM RUN\n")
-        # Reset environment
-        env.reset()
+        for _ in range(2):
+            env = gym.make(
+              'turbine-env-v0',
+              seed=None,
+              render_mode=args.render_mode,
+              history_length=args.history_length,
+              reward_1=args.reward_1,
+              reward_2=args.reward_2,
+              reward_3=args.reward_3,
+              reward_4=args.reward_4,
+              lower_threshold=args.lower_threshold,
+              upper_threshold=args.upper_threshold
+            )
+            env.reset()
 
-        # Take some random actions
-        truncated = False
-        while not truncated:
-            rand_action = env.action_space.sample()
-            obs, _, _, truncated, _ = env.step(rand_action)
+            i = 0
+            truncated = False
+            while not truncated and i < args.simulate_steps:
+                obs, _, _, truncated, _ = env.step(0)
+                i += 1
+            env.close()
