@@ -9,6 +9,7 @@ import v0_turbine_env
 import v1_turbine_env 
 import gymnasium as gym
 from stable_baselines3 import A2C, DQN, PPO
+from stable_baselines3.common.evaluation import evaluate_policy
 
 def get_unique_path(base_path):
     """
@@ -26,15 +27,15 @@ def get_unique_path(base_path):
             return new_path
         i += 1
 
-def test_sb3(model_path, model_type, env_args, env_version, n_steps, random_thresholds):
+def test_sb3(env_args, timesteps, env_version, model_type, model_path):
     """
     Test a trained RL model on the Turbine environment using Stable Baselines3.
     Args:
-        model_path (str): Path to the trained model file.
-        model_type (str): Type of the RL model ('A2C', 'DQN', 'PPO').
         env_args (dict): Arguments for the environment.
+        timesteps (int): Number of timesteps to test the model.
         env_version (str): Version of the environment ('v0', 'v1').
-        n_steps (int): Number of timesteps to test the model.
+        model_type (str): Type of the RL model ('A2C', 'DQN', 'PPO').
+        model_path (str): Path to the trained model file.
     """
     # Create results directory
     results_dir = "results"
@@ -46,6 +47,9 @@ def test_sb3(model_path, model_type, env_args, env_version, n_steps, random_thre
     # Load model
     model_class = {"A2C": A2C, "DQN": DQN, "PPO": PPO}[model_type]
     model = model_class.load(model_path, env=env)
+
+    evaluation = evaluate_policy(model, env, n_eval_episodes=10, return_episode_rewards=True)
+    print(f"Evaluation over 10 episodes: Mean reward = {np.mean(evaluation[0])}, Std reward = {np.std(evaluation[0])}")
 
     # Keep track of observations and actions
     H2_history = []
@@ -60,7 +64,7 @@ def test_sb3(model_path, model_type, env_args, env_version, n_steps, random_thre
     # Run a test
     obs = env.reset()[0]
     save_every = env_args.get("history_length")
-    for i in range(n_steps):
+    for i in range(timesteps):
         action, _ = model.predict(observation=obs, deterministic=True)
         obs, reward, _, _, _ = env.step(action)
         action_history.append(int(action))
@@ -126,4 +130,4 @@ if __name__ == '__main__':
         print(f"Invalid parameters: {e}")
         exit(1)
     
-    test_sb3(args.model, model_type, env_args, env_version, args.steps)
+    test_sb3(env_args, args.steps, env_version, model_type, args.model)

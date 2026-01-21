@@ -1,5 +1,6 @@
 import gymnasium as gym
 from gymnasium import spaces
+from gymnasium.wrappers import NormalizeObservation
 from gymnasium.envs.registration import register
 from gymnasium.utils.env_checker import check_env
 from simulator_modules.Operators import HighVariability, LowVariability
@@ -199,6 +200,7 @@ if __name__ == "__main__":
         lower_threshold=args.lower_threshold,
         upper_threshold=args.upper_threshold
     )
+    env = NormalizeObservation(env)
     print(env.observation_space)
     print(env.action_space)
 
@@ -223,6 +225,7 @@ if __name__ == "__main__":
               lower_threshold=args.lower_threshold,
               upper_threshold=args.upper_threshold
             )
+            env = NormalizeObservation(env)
             env.reset()
 
             i = 0
