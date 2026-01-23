@@ -5,7 +5,7 @@ import numpy as np
 import v0_turbine_env 
 import v1_turbine_env 
 import gymnasium as gym
-from stable_baselines3.common.callbacks import EvalCallback
+from CustomCallbacks import TurbineEvalCallback
 from stable_baselines3 import A2C, DQN, PPO
 
 def get_unique_path(base_path):
@@ -24,7 +24,7 @@ def get_unique_path(base_path):
             return new_path
         i += 1
 
-def train_sb3(env_args, timesteps, env_version, model_type):
+def train_sb3(env_args, timesteps, env_version, model_type, n_evaluations):
     """
     Train an RL model on the Turbine environment using Stable Baselines3.
     Args:
@@ -32,6 +32,7 @@ def train_sb3(env_args, timesteps, env_version, model_type):
         timesteps (int): Number of timesteps to train the model.
         env_version (str): Version of the environment ('v0', 'v1').
         model_type (str): Type of the RL model ('A2C', 'DQN', 'PPO').
+        n_evaluations (int): Number of evaluations during training.
     """
     # Save training parameters
     os.makedirs("parameters", exist_ok=True)
@@ -49,9 +50,11 @@ def train_sb3(env_args, timesteps, env_version, model_type):
     env = gym.make('turbine-env-' + env_version, **env_args)
 
     # Create evaluation callback
-    os.makedirs("best_models", exist_ok=True)
-    eval_callback = EvalCallback(env, n_eval_episodes=5, best_model_save_path="best_models/",
-                             log_path="best_models/", eval_freq=timesteps//10,
+    model_dir = f"saved_models/{model_type.lower()}-{env_version}"
+    model_dir = get_unique_path(model_dir)
+    os.makedirs(model_dir, exist_ok=True)
+    eval_callback = TurbineEvalCallback(env, n_eval_episodes=5, best_model_save_path=model_dir,
+                             log_path=model_dir, eval_freq=timesteps//n_evaluations,
                              deterministic=True, render=False, verbose=1)
 
     # Create and train model
@@ -63,9 +66,8 @@ def train_sb3(env_args, timesteps, env_version, model_type):
     print("Starting training...")
     model.learn(total_timesteps=timesteps, reset_num_timesteps=False, callback=eval_callback, progress_bar=True)
 
-    # Save the model and parameters
-    os.makedirs("saved_models", exist_ok=True)
-    model_path = get_unique_path(f"saved_models/{model_type.lower()}-{env_version}.zip")
+    # Save the last model
+    model_path = get_unique_path(f"{model_dir}/last_version.zip")
     model.save(model_path)
     print(f"Training completed and model saved to {model_path}")
 
@@ -75,6 +77,7 @@ if __name__ == '__main__':
     parser.add_argument("--model_type", type=str, choices=["A2C", "DQN", "PPO"], default="DQN", help="Type of model to use.")
     parser.add_argument("--env_version", type=str, default="v0", help="Version of the environment to use.")
     parser.add_argument("--timesteps", type=int, default=500000, help="Number of timesteps for training.")
+    parser.add_argument("--evaluations", type=int, default=10, help="Number of evaluations during training.")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility.")
     parser.add_argument("--history_length", type=int, default=20, help="Length of the history buffer.")
     parser.add_argument("--reward_1", type=float, default=-20, help="Reward for alert and no action")
@@ -96,4 +99,4 @@ if __name__ == '__main__':
         "upper_threshold": args.upper_threshold
     }
 
-    train_sb3(env_args, args.timesteps, args.env_version, args.model_type)
+    train_sb3(env_args, args.timesteps, args.env_version, args.model_type, args.evaluations)
