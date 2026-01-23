@@ -1,6 +1,5 @@
 import gymnasium as gym
 from gymnasium import spaces
-from gymnasium.wrappers import NormalizeObservation
 from gymnasium.envs.registration import register
 from gymnasium.utils.env_checker import check_env
 from simulator_modules.Operators import HighVariability, LowVariability
@@ -14,7 +13,7 @@ register(
     entry_point='v0_turbine_env:TurbineEnv', # module_name:class_name
 )
 
-def create_nodes_and_relations(prob=0.0001):
+def create_nodes_and_relations(seed=None, prob=0.0001):
     # Create nodes
     H2 = HighVariability(lower_bound=30, upper_bound=70, typical_value=57.5, name="H2",
                          typical_bias=0.1, typical_bias_prob=0.1, theta=1.5, theta_prob=0.1,
@@ -25,9 +24,9 @@ def create_nodes_and_relations(prob=0.0001):
     Metano = HighVariability(lower_bound=30, upper_bound=70, typical_value=40, name="Metano",
                              typical_bias=0.1, typical_bias_prob=0.1, theta=1.5, theta_prob=0.1)
     MaxEnergy = LowVariability(lower_bound=0, upper_bound=100, typical_value=20, name="MaxEnergy",
-                           theta=0.7, steps_range=(100, 200))
+                           theta=0.7, steps_range=(100, 200), seed=seed+1 if seed is not None else None)
     GeneratedEnergy = LowVariability(lower_bound=0, upper_bound=100, typical_value=40, name="GeneratedEnergy",
-                                     theta=0.7, steps_range=(100,200))
+                                     theta=0.7, steps_range=(100,200), seed=seed+2 if seed is not None else None)
     # Create relations
     relations = {
         "relation1": LinkH2Metano(limit_lower_bound=75, limit_upper_bound=100,
@@ -40,9 +39,9 @@ def create_nodes_and_relations(prob=0.0001):
     return H2, Metano, MaxEnergy, GeneratedEnergy, relations
 
 def create_graph(seed=None):
-    H2, Metano, MaxEnergy, GeneratedEnergy, relations = create_nodes_and_relations()
-
     graph = Graph(random_seed=seed, debug=False, n_unstable_steps=480)
+    H2, Metano, MaxEnergy, GeneratedEnergy, relations = create_nodes_and_relations(seed=seed)
+
     node1 = graph.add_node(H2)
     node2 = graph.add_node(Metano)
     node3 = graph.add_node(MaxEnergy)
@@ -116,6 +115,7 @@ class TurbineEnv(gym.Env):
             current_values = np.array([node.last_value for node in self.nodes], dtype=np.float32)
             self.history = np.roll(self.history, shift=-1, axis=1)
             self.history[:, -1] = current_values
+        self.state = self.nodes[0].op.state.get_type()
 
         # Additional info to return. For debugging or whatever.
         info = {}
@@ -133,6 +133,7 @@ class TurbineEnv(gym.Env):
 
         # Simulate one step and update history
         self.graph.simulate(steps=1, other_informations=other_information)
+        self.state = self.nodes[0].op.state.get_type()
         current_values = np.array([node.last_value for node in self.nodes], dtype=np.float32)
         self.history = np.roll(self.history, shift=-1, axis=1)
         self.history[:, -1] = current_values
@@ -200,7 +201,6 @@ if __name__ == "__main__":
         lower_threshold=args.lower_threshold,
         upper_threshold=args.upper_threshold
     )
-    env = NormalizeObservation(env)
     print(env.observation_space)
     print(env.action_space)
 
@@ -225,7 +225,6 @@ if __name__ == "__main__":
               lower_threshold=args.lower_threshold,
               upper_threshold=args.upper_threshold
             )
-            env = NormalizeObservation(env)
             env.reset()
 
             i = 0

@@ -1,15 +1,13 @@
 import os
 import argparse
 import json
-import csv
-import re
 import pandas as pd
 import numpy as np
 import v0_turbine_env 
 import v1_turbine_env 
 import gymnasium as gym
-from stable_baselines3 import A2C, DQN, PPO
 from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3 import A2C, DQN, PPO
 
 def get_unique_path(base_path):
     """
@@ -129,5 +127,6 @@ if __name__ == '__main__':
     except (ValueError, KeyError) as e:
         print(f"Invalid parameters: {e}")
         exit(1)
-    
+
+    env_args['seed'] = 42
     test_sb3(env_args, args.steps, env_version, model_type, args.model)
