@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import random
 from math import cos, sin
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Constants for state machine
 BASELINE  = 0   # Normal
@@ -423,7 +424,8 @@ class LowVariability(StandardOperator):
                     typical_value: float,
                     name: str,
                     theta: float,
-                    steps_range: tuple):
+                    steps_range: tuple,
+                    seed: int = random.randint(0, 10000)):
         """
         Initializes the LowVariability operator.
 
@@ -434,12 +436,15 @@ class LowVariability(StandardOperator):
             name (str): The name of the operator.
             theta (float): Maximum variation from the previous value.
             steps_range (tuple): Range of steps for the linear trend.
+            seed (int, optional): Seed for random number generation. Defaults to a random integer.
         """
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
         self.typical_value = typical_value
         self.theta = theta
         self.steps_range = steps_range
+        self.seed = seed
+        self.rng = np.random.default_rng(seed)
 
         self.name = name
         self.stack = []
@@ -478,9 +483,9 @@ class LowVariability(StandardOperator):
                                      Defaults to self.steps_range.
         """
         if range:
-            self.total_steps = random.randint(*range)
+            self.total_steps = self.rng.integers(*range)
         else:
-            self.total_steps = random.randint(*self.steps_range)
+            self.total_steps = self.rng.integers(*self.steps_range)
         self.steps_counter = 0
 
     def next_step(self, value: float = None) -> float:
@@ -500,7 +505,7 @@ class LowVariability(StandardOperator):
 
         # Initialize the stack with a value near the typical value
         elif self.current_value is None:
-            new_value = random.uniform(
+            new_value = self.rng.uniform(
                 max(self.lower_bound, self.typical_value - self.theta),
                 min(self.upper_bound, self.typical_value + self.theta)
             )
@@ -510,7 +515,7 @@ class LowVariability(StandardOperator):
             if self.total_steps == self.steps_counter:
                 self.set_new_trend()
                 self.start_value = self.current_value
-                self.end_value = random.uniform(
+                self.end_value = self.rng.uniform(
                     max(self.lower_bound, self.typical_value - self.theta),
                     min(self.upper_bound, self.typical_value + self.theta)
                 )

@@ -441,14 +441,15 @@ class LinkGeneratedEnergy(Link):
         self.alert_mode = False
     
     def calculate(self, parent, child, other_informations):
+        rng = child.op.rng
         if not self.alert_mode and other_informations is not None and 'alert' in other_informations and other_informations['alert'] == True:
             self.alert_mode = True
             child.op.set_new_trend()
             child.op.start_value = child.op.current_value
-            child.op.end_value = parent.op.current_value * random.uniform(0.7, 0.8)
-            if random.random() < self.theta_prob:
+            child.op.end_value = parent.op.current_value * rng.uniform(0.7, 0.8)
+            if rng.random() < self.theta_prob:
                 child.op.end_value -= (parent.op.current_value - child.op.end_value) * self.theta_bias
-            if random.random() < self.typical_bias_prob:
+            if rng.random() < self.typical_bias_prob:
                 child.op.end_value += (parent.op.current_value - child.op.end_value) * self.typical_bias
             self.smooth_factor = 0.5
 
@@ -464,12 +465,12 @@ class LinkGeneratedEnergy(Link):
             self.smooth_factor = min(1, self.smooth_factor + 0.05)
 
             # Gradually move child.op.end_value towards parent's end_value after alert
-            target_value = parent.op.end_value * random.uniform(0.8, 1.0)
+            target_value = parent.op.end_value * rng.uniform(0.8, 1.0)
             child.op.end_value = (1 - self.smooth_factor) * child.op.current_value + self.smooth_factor * target_value
 
-            if random.random() < self.theta_prob:
+            if rng.random() < self.theta_prob:
                 child.op.end_value -= (parent.op.end_value - child.op.end_value) * self.theta_bias
-            if random.random() < self.typical_bias_prob:
+            if rng.random() < self.typical_bias_prob:
                 child.op.end_value += (parent.op.end_value - child.op.end_value) * self.typical_bias
 
         elif child.op.current_value is None:
