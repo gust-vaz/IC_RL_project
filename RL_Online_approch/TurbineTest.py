@@ -49,6 +49,12 @@ def test_sb3(env_args, timesteps, env_version, model_type, model_path):
     evaluation = evaluate_policy(model, env, n_eval_episodes=10, return_episode_rewards=True)
     print(f"Evaluation over 10 episodes: Mean reward = {np.mean(evaluation[0])}, Std reward = {np.std(evaluation[0])}")
 
+    # Set seed for reproducibility
+    env_args['seed'] = 42
+    env = gym.make('turbine-env-' + env_version, **env_args)
+    model_class = {"A2C": A2C, "DQN": DQN, "PPO": PPO}[model_type]
+    model = model_class.load(model_path, env=env)
+
     # Keep track of observations and actions
     H2_history = []
     Metano_history = []
@@ -128,5 +134,4 @@ if __name__ == '__main__':
         print(f"Invalid parameters: {e}")
         exit(1)
 
-    env_args['seed'] = 42
     test_sb3(env_args, args.steps, env_version, model_type, args.model)

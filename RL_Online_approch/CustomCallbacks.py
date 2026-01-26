@@ -18,10 +18,11 @@ class TurbineEvalCallback(EvalCallback):
         super().__init__(*args, **kwargs)
         
     def _on_step(self) -> bool:
-        continue_training = super()._on_step()
-        
+        continue_training = True
+
         if self.eval_freq > 0 and self.n_calls % self.eval_freq == 0:
             self._evaluate_with_q_values()
+            continue_training = super()._on_step()
         
         return continue_training
     
