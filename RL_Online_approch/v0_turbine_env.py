@@ -58,11 +58,10 @@ class TurbineEnv(gym.Env):
     def __init__(self, seed=None, render_mode=None, history_length=20,
                  reward_1=-20, reward_2=-3,
                  reward_3=0.001, reward_4=-0.2,
-                 lower_threshold=50, upper_threshold=70, steps=100000):
+                 lower_threshold=50, upper_threshold=70, 
+                 steps=100000, normalize_obs=False):
         self.render_mode = render_mode
         self.history_length = history_length
-        self.lower_threshold = lower_threshold
-        self.upper_threshold = upper_threshold
         self.seed = seed
         self.rng = np.random.default_rng(seed)
 
@@ -77,6 +76,7 @@ class TurbineEnv(gym.Env):
         self.graph = graph
         self.nodes = nodes
         self.n_steps = steps # Number of steps to simulate
+        self.normalize_obs = normalize_obs
 
         # Initialize history buffer for each node
         self.history = np.zeros((len(self.nodes), self.history_length), dtype=np.float32)
@@ -87,12 +87,22 @@ class TurbineEnv(gym.Env):
         self.last_action = None
 
         # Use a 1D vector: [node1.last_value, node2.last_value, ..., node12.last_value]
-        self.observation_space = spaces.Box(
-            low=0,
-            high=100,
-            shape=(len(self.nodes), self.history_length),
-            dtype=np.float32
-        )
+        if self.normalize_obs:
+            self.lower_threshold = lower_threshold / 100.0
+            self.upper_threshold = upper_threshold / 100.0
+            self.observation_space = spaces.Box(
+                low=0, high=1,
+                shape=(len(self.nodes), self.history_length),
+                dtype=np.float32
+            )
+        else:
+            self.lower_threshold = lower_threshold
+            self.upper_threshold = upper_threshold
+            self.observation_space = spaces.Box(
+                low=0, high=100,
+                shape=(len(self.nodes), self.history_length),
+                dtype=np.float32
+            )
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -113,6 +123,8 @@ class TurbineEnv(gym.Env):
         for _ in range(self.history_length):
             self.graph.simulate(steps=1)
             current_values = np.array([node.last_value for node in self.nodes], dtype=np.float32)
+            if self.normalize_obs:
+                current_values = current_values / 100.0
             self.history = np.roll(self.history, shift=-1, axis=1)
             self.history[:, -1] = current_values
         self.state = self.nodes[0].op.state.get_type()
@@ -135,6 +147,8 @@ class TurbineEnv(gym.Env):
         self.graph.simulate(steps=1, other_informations=other_information)
         self.state = self.nodes[0].op.state.get_type()
         current_values = np.array([node.last_value for node in self.nodes], dtype=np.float32)
+        if self.normalize_obs:
+            current_values = current_values / 100.0
         self.history = np.roll(self.history, shift=-1, axis=1)
         self.history[:, -1] = current_values
 

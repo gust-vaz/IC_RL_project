@@ -86,6 +86,7 @@ if __name__ == '__main__':
     parser.add_argument("--reward_4", type=float, default=-0.2, help="Reward for no alert and action")
     parser.add_argument("--lower_threshold", type=float, default=None, help="Lower threshold for the turbine's H2 level.")
     parser.add_argument("--upper_threshold", type=float, default=None, help="Upper threshold for the turbine's H2 level.")
+    parser.add_argument("--normalize_obs", action="store_true", help="Whether to normalize observations between 0 and 1")
     args = parser.parse_args()
 
     env_args = {
@@ -96,7 +97,8 @@ if __name__ == '__main__':
         "reward_3": args.reward_3,
         "reward_4": args.reward_4,
         "lower_threshold": args.lower_threshold,
-        "upper_threshold": args.upper_threshold
+        "upper_threshold": args.upper_threshold,
+        "normalize_obs": args.normalize_obs
     }
 
     train_sb3(env_args, args.timesteps, args.env_version, args.model_type, args.evaluations)
