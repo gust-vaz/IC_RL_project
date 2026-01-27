@@ -1,6 +1,5 @@
 import gymnasium as gym
 from gymnasium import spaces
-from gymnasium.wrappers import NormalizeObservation
 from gymnasium.envs.registration import register
 from gymnasium.utils.env_checker import check_env
 from simulator_modules.Operators import HighVariability, LowVariability
@@ -14,7 +13,7 @@ register(
     entry_point='v1_turbine_env:TurbineEnv', # module_name:class_name
 )
 
-def create_nodes_and_relations(prob=0.0001):
+def create_nodes_and_relations(seed=None, prob=0.0001):
     # Create nodes
     H2 = HighVariability(lower_bound=30, upper_bound=70, typical_value=57.5, name="H2",
                          typical_bias=0.1, typical_bias_prob=0.1, theta=1.5, theta_prob=0.1,
@@ -25,9 +24,9 @@ def create_nodes_and_relations(prob=0.0001):
     Metano = HighVariability(lower_bound=30, upper_bound=70, typical_value=40, name="Metano",
                              typical_bias=0.1, typical_bias_prob=0.1, theta=1.5, theta_prob=0.1)
     MaxEnergy = LowVariability(lower_bound=0, upper_bound=100, typical_value=20, name="MaxEnergy",
-                           theta=0.7, steps_range=(100, 200))
+                           theta=0.7, steps_range=(100, 200), seed=seed+1 if seed is not None else None)
     GeneratedEnergy = LowVariability(lower_bound=0, upper_bound=100, typical_value=40, name="GeneratedEnergy",
-                                     theta=0.7, steps_range=(100,200))
+                                     theta=0.7, steps_range=(100,200), seed=seed+2 if seed is not None else None)
     # Create relations
     relations = {
         "relation1": LinkH2Metano(limit_lower_bound=75, limit_upper_bound=100,
@@ -40,9 +39,9 @@ def create_nodes_and_relations(prob=0.0001):
     return H2, Metano, MaxEnergy, GeneratedEnergy, relations
 
 def create_graph(seed=None):
-    H2, Metano, MaxEnergy, GeneratedEnergy, relations = create_nodes_and_relations()
-
     graph = Graph(random_seed=seed, debug=False, n_unstable_steps=480)
+    H2, Metano, MaxEnergy, GeneratedEnergy, relations = create_nodes_and_relations(seed=seed)
+
     node1 = graph.add_node(H2)
     node2 = graph.add_node(Metano)
     node3 = graph.add_node(MaxEnergy)
@@ -59,12 +58,11 @@ class TurbineEnv(gym.Env):
     def __init__(self, seed=None, render_mode=None, history_length=20,
                  reward_1=-20, reward_2=-3,
                  reward_3=0.001, reward_4=-0.2,
-                 lower_threshold=None, upper_threshold=None, steps=50000):
+                 lower_threshold=None, upper_threshold=None, 
+                 steps=50000, normalize_obs=False):
         self.render_mode = render_mode
         self.history_length = history_length
-        self.default_lower_threshold = lower_threshold
         self.lower_threshold = None
-        self.default_upper_threshold = upper_threshold
         self.upper_threshold = None
         self.seed = seed
         self.rng = np.random.default_rng(self.seed)
@@ -80,6 +78,7 @@ class TurbineEnv(gym.Env):
         self.graph = graph
         self.nodes = nodes
         self.n_steps = steps # Number of steps to simulate
+        self.normalize_obs = normalize_obs
 
         # Initialize history buffer for each node + thresholds
         self.history = np.zeros((len(self.nodes) + 2, self.history_length), dtype=np.float32)
@@ -90,12 +89,22 @@ class TurbineEnv(gym.Env):
         self.last_action = None
 
         # Use a 1D vector: [node1.last_value, node2.last_value, ..., nodeN.last_value, lower_threshold, upper_threshold]
-        self.observation_space = spaces.Box(
-            low=0,
-            high=100,
-            shape=(len(self.nodes) + 2, self.history_length),
-            dtype=np.float32
-        )
+        if self.normalize_obs:
+            self.default_lower_threshold = lower_threshold / 100.0 if lower_threshold is not None else lower_threshold
+            self.default_upper_threshold = upper_threshold / 100.0 if upper_threshold is not None else upper_threshold
+            self.observation_space = spaces.Box(
+                low=0, high=1,
+                shape=(len(self.nodes) + 2, self.history_length),
+                dtype=np.float32
+            )
+        else:
+            self.default_lower_threshold = lower_threshold
+            self.default_upper_threshold = upper_threshold
+            self.observation_space = spaces.Box(
+                low=0, high=100,
+                shape=(len(self.nodes) + 2, self.history_length),
+                dtype=np.float32
+            )
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -107,11 +116,17 @@ class TurbineEnv(gym.Env):
             
         # Randomize thresholds at each reset
         if self.default_lower_threshold is None:
-            self.lower_threshold = self.rng.uniform(36, 80)
+            if self.normalize_obs:
+                self.lower_threshold = self.rng.uniform(0.36, 0.80)
+            else:
+                self.lower_threshold = self.rng.uniform(36, 80)
         else:
             self.lower_threshold = self.default_lower_threshold
         if self.default_upper_threshold is None:
-            self.upper_threshold = self.rng.uniform(self.lower_threshold + 1, 99)
+            if self.normalize_obs:
+                self.upper_threshold = self.rng.uniform(self.lower_threshold + 0.01, 0.99)
+            else:
+                self.upper_threshold = self.rng.uniform(self.lower_threshold + 1, 99)
         else:
             self.upper_threshold = self.default_upper_threshold
 
@@ -127,6 +142,8 @@ class TurbineEnv(gym.Env):
         for _ in range(self.history_length):
             self.graph.simulate(steps=1)
             current_values = np.array([node.last_value for node in self.nodes], dtype=np.float32)
+            if self.normalize_obs:
+                current_values = current_values / 100.0
             self.history = np.roll(self.history, shift=-1, axis=1)
             self.history[:len(self.nodes), -1] = current_values
             self.history[len(self.nodes), -1] = self.lower_threshold
@@ -149,6 +166,8 @@ class TurbineEnv(gym.Env):
         # Simulate one step and update history
         self.graph.simulate(steps=1, other_informations=other_information)
         current_values = np.array([node.last_value for node in self.nodes], dtype=np.float32)
+        if self.normalize_obs:
+            current_values = current_values / 100.0
         self.history = np.roll(self.history, shift=-1, axis=1)
         self.history[:len(self.nodes), -1] = current_values
         self.history[len(self.nodes), -1] = self.lower_threshold
@@ -221,7 +240,6 @@ if __name__ == "__main__":
         lower_threshold=args.lower_threshold,
         upper_threshold=args.upper_threshold
     )
-    env = NormalizeObservation(env)
     print(env.observation_space)
     print(env.action_space)
 
@@ -246,7 +264,6 @@ if __name__ == "__main__":
               lower_threshold=args.lower_threshold,
               upper_threshold=args.upper_threshold
             )
-            env = NormalizeObservation(env)
             env.reset()
 
             i = 0
